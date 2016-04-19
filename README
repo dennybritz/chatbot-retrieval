@@ -1,0 +1,10 @@
+## Retrieval-Based Chatbot
+
+#### Setup
+
+
+This code uses Python 3. Install all required packages:
+
+```
+pip install -r requirements.txt
+```
