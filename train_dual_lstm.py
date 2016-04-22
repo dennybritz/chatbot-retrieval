@@ -38,7 +38,7 @@ RNN_DIM = FLAGS.rnn_dim
 # Load Data
 # ==================================================
 print("Loading data...")
-train_df = pd.read_csv(os.path.join(FLAGS.data_dir, "train_small.csv"))
+train_df = pd.read_csv(os.path.join(FLAGS.data_dir, "train.csv"))
 test_df = pd.read_csv(os.path.join(FLAGS.data_dir, "test.csv"))
 validation_df = pd.read_csv(os.path.join(FLAGS.data_dir, "valid.csv"))
 y_test = np.zeros(len(test_df))
