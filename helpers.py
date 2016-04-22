@@ -20,3 +20,12 @@ def load_glove_vectors(filename, vocab=None):
         word_dim = len(entries)
         num_vectors = len(dct)
         return [np.array(vectors).reshape(num_vectors, word_dim), dct]
+
+
+def evaluate_recall(y, y_labels, n=1):
+    num_examples = float(len(y))
+    num_correct = 0
+    for predictions, label in zip(y, y_labels):
+        if label in predictions[:n]:
+            num_correct += 1
+    return num_correct/num_examples
