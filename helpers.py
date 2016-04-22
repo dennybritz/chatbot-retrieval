@@ -9,13 +9,14 @@ def load_glove_vectors(filename, vocab=None):
     """
     dct = {}
     vectors = array.array('d')
-    with open(PATH, "r", encoding="utf-8") as f:
+    with open(filename, "r", encoding="utf-8") as f:
         for idx, line in enumerate(f):
             tokens = line.split(" ")
             word = tokens[0]
+            entries = tokens[1:]
             if not vocab or word in vocab:
                 dct[word] = idx
-                vectors.extend(float(x) for x in tokens[1:])
+                vectors.extend(float(x) for x in entries)
         word_dim = len(entries)
         num_vectors = len(dct)
         return [np.array(vectors).reshape(num_vectors, word_dim), dct]
