@@ -106,9 +106,11 @@ def rnn_encoder_model(X, y):
     # Run context and utterance through the same RNN
     with tf.variable_scope("shared_rnn_params") as vs:
         cell = tf.nn.rnn_cell.BasicLSTMCell(RNN_DIM)
-        _, encoding_context = tf.nn.rnn(cell, word_list_context, dtype=dtypes.float32)
+        context_outputs, encoding_context = tf.nn.rnn(cell, word_list_context, dtype=dtypes.float32)
+        encoding_context = context_outputs[len(context_outputs)-1]
         vs.reuse_variables()
-        _, encoding_utterance = tf.nn.rnn(cell, word_list_utterance, dtype=dtypes.float32)
+        utterance_outpus, encoding_utterance = tf.nn.rnn(cell, word_list_utterance, dtype=dtypes.float32)
+        encoding_utterance = utterance_outpus[len(utterance_outpus)-1]
 
     with tf.variable_scope("prediction") as vs:
         W = tf.get_variable("W",
@@ -173,6 +175,7 @@ classifier = tf.contrib.learn.TensorFlowEstimator(
     model_fn=rnn_encoder_model,
     n_classes=1,
     continue_training=True,
+    learning_rate = 0.01,
     steps=FLAGS.num_steps,
     batch_size=FLAGS.batch_size)
 
