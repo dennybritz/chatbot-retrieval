@@ -75,29 +75,12 @@ print("Total words: {}".format(n_words))
 
 # define personal categorical_variable
 def categorical_variable(tensor_in, n_classes, embedding_size, name):
-    """Creates an embedding for categorical variable with given number of
-    classes.
-
-    Args:
-        tensor_in: Input tensor with class identifier (can be batch or
-            N-dimensional).
-        n_classes: Number of classes.
-        embedding_size: Size of embedding vector to represent each class.
-        name: Name of this categorical variable.
-    Returns:
-        Tensor of input shape, with additional dimension for embedding.
-
-    Example:
-        Calling categorical_variable([1, 2], 5, 10, "my_cat"), will return 2 x 10
-        tensor, where each row is representation of the class.
-    """
-
-
     with tf.variable_scope(name):
         initial_tensor = tf.convert_to_tensor(glove_WE,dtype=tf.float32)
         embeddings = tf.get_variable(
             name + "_embeddings", initializer=initial_tensor)
         return skflow.ops.embedding_lookup(embeddings, tensor_in)
+
 # Define RNN Dual Encoder Model
 # ==================================================
 
@@ -190,11 +173,8 @@ classifier = tf.contrib.learn.TensorFlowEstimator(
     model_fn=rnn_encoder_model,
     n_classes=1,
     continue_training=True,
-    learning_rate=0.001,
     steps=FLAGS.num_steps,
     batch_size=FLAGS.batch_size)
-
-
 
 monitor = ValidationMonitor(print_steps=100, val_steps=1000)
 classifier.fit(X_train, y_train, logdir='./tmp/tf/dual_lstm_chatbot/', monitor=monitor)

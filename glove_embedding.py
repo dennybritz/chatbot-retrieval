@@ -7,7 +7,9 @@ from tensorflow.contrib import skflow
 from tensorflow.python.framework import dtypes
 import array
 
-
+# we first run the code to construct the word_embdding from glove.840B.300d.txt file
+# then save into file ./data/embedding.p
+# when we trained the LSTM, we load the emdedding.p file
 
 def load_glove_vectors(filename, vocab=None):
     """
@@ -43,11 +45,8 @@ glove_dir = "./glove/"
 # ==================================================
 print("Loading data...")
 train_df = pd.read_csv(os.path.join(data_dir, "train.csv"))
-test_df = pd.read_csv(os.path.join(data_dir, "test.csv"))
-validation_df = pd.read_csv(os.path.join(data_dir, "valid.csv"))
-y_test = np.zeros(len(test_df))
 print("Loading glove embedding...")
-#glove_w2v = load_vec(os.path.join(data_dir, "vectors.txt"))
+#glove_w2v = load_glove_vectors(os.path.join(data_dir, "vectors.txt"))
 glove_w2v = load_glove_vectors(os.path.join(glove_dir, "glove.840B.300d.txt"))
 
 # Preprocessing
@@ -61,23 +60,24 @@ print("start preparing word embedding...")
 
 WE = []
 cover = 0
-#mapping_list = {"<unk>":0}
 dataset_vocab = vocab_processor.vocabulary_._reverse_mapping
 for i in range(len(dataset_vocab)):
     word = str(dataset_vocab[i])
     if glove_w2v.get(word) == None:
+        # if word isn't in vocabulary, we randomize the word_embedding
         WE.append(np.random.uniform(-0.1,0.1,EMBEDDING_DIM))
         continue
     WE.append(glove_w2v[word])
     cover += 1
-     # mapping_list[word] = i
 
 WE = np.array(WE)
 print(type(WE))
 print(WE.shape)
 print("total word: "+str((WE.shape[0])))
 print("cover word: "+str(cover))
+#finally cover is about 20% of WE.shape[0]
+
 
 pickle.dump(WE, open(os.path.join(data_dir,"embedding.p"), "wb"))
-#pickle.dump(mapping_list, open("mappingList.p", "wb"))
+
 
