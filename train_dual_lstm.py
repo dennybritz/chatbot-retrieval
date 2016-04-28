@@ -8,6 +8,7 @@ from tensorflow.models.rnn import rnn, rnn_cell
 from tensorflow.contrib import skflow
 from tensorflow.python.framework import dtypes
 from helpers import load_glove_vectors, evaluate_recall
+import pickle
 
 tf.flags.DEFINE_integer("num_steps", 1000000, "Number of training steps")
 tf.flags.DEFINE_integer("batch_size", 256, "Batch size")
@@ -41,6 +42,13 @@ print("Loading data...")
 train_df = pd.read_csv(os.path.join(FLAGS.data_dir, "train.csv"))
 test_df = pd.read_csv(os.path.join(FLAGS.data_dir, "test.csv"))
 validation_df = pd.read_csv(os.path.join(FLAGS.data_dir, "valid.csv"))
+#load word embedding
+glove_WE = pickle.load(open(os.path.join(FLAGS.data_dir, "embedding.p"), "rb"))
+
+
+print("finished")
+
+
 y_test = np.zeros(len(test_df))
 
 
@@ -50,6 +58,8 @@ y_test = np.zeros(len(test_df))
 all_sentences = np.append(train_df.Context, train_df.Utterance)
 vocab_processor = skflow.preprocessing.VocabularyProcessor(MAX_CONTEXT_LENGTH)
 vocab_processor.fit(all_sentences)
+
+
 
 # Transform contexts and utterances
 X_train_context = np.array(list(vocab_processor.transform(train_df.Context)))
@@ -62,6 +72,14 @@ y_train = train_df.Label
 n_words = len(vocab_processor.vocabulary_)
 print("Total words: {}".format(n_words))
 
+
+# define personal categorical_variable
+def categorical_variable(tensor_in, n_classes, embedding_size, name):
+    with tf.variable_scope(name):
+        initial_tensor = tf.convert_to_tensor(glove_WE,dtype=tf.float32)
+        embeddings = tf.get_variable(
+            name + "_embeddings", initializer=initial_tensor)
+        return skflow.ops.embedding_lookup(embeddings, tensor_in)
 
 # Define RNN Dual Encoder Model
 # ==================================================
@@ -76,20 +94,23 @@ def rnn_encoder_model(X, y):
     # Embed context and utterance into the same space
     with tf.variable_scope("shared_embeddings") as vs:
         with tf.device('/cpu:0'):
-            word_vectors_context = skflow.ops.categorical_variable(
+
+            word_vectors_context = categorical_variable(
                 context, n_classes=n_words, embedding_size=EMBEDDING_DIM, name='words')
             word_list_context = skflow.ops.split_squeeze(1, MAX_CONTEXT_LENGTH, word_vectors_context)
             vs.reuse_variables()
-            word_vectors_utterance = skflow.ops.categorical_variable(
+            word_vectors_utterance = categorical_variable(
                 utterance_truncated, n_classes=n_words, embedding_size=EMBEDDING_DIM, name='words')
             word_list_utterance = skflow.ops.split_squeeze(1, MAX_UTTERANCE_LENGTH, word_vectors_utterance)
 
     # Run context and utterance through the same RNN
     with tf.variable_scope("shared_rnn_params") as vs:
         cell = tf.nn.rnn_cell.BasicLSTMCell(RNN_DIM)
-        _, encoding_context = tf.nn.rnn(cell, word_list_context, dtype=dtypes.float32)
+        context_outputs, encoding_context = tf.nn.rnn(cell, word_list_context, dtype=dtypes.float32)
+        encoding_context = context_outputs[len(context_outputs)-1]
         vs.reuse_variables()
-        _, encoding_utterance = tf.nn.rnn(cell, word_list_utterance, dtype=dtypes.float32)
+        utterance_outpus, encoding_utterance = tf.nn.rnn(cell, word_list_utterance, dtype=dtypes.float32)
+        encoding_utterance = utterance_outpus[len(utterance_outpus)-1]
 
     with tf.variable_scope("prediction") as vs:
         W = tf.get_variable("W",
@@ -154,6 +175,7 @@ classifier = tf.contrib.learn.TensorFlowEstimator(
     model_fn=rnn_encoder_model,
     n_classes=1,
     continue_training=True,
+    learning_rate = 0.01,
     steps=FLAGS.num_steps,
     batch_size=FLAGS.batch_size)
 
