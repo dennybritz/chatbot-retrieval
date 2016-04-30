@@ -14,11 +14,11 @@ tf.flags.DEFINE_integer("num_steps", 1000000, "Number of training steps")
 tf.flags.DEFINE_integer("batch_size", 256, "Batch size")
 tf.flags.DEFINE_float("learning_rate", 0.01, "Learning Rate")
 tf.flags.DEFINE_float("learning_rate_decay_rate", 0.95, "Learning Rate Decay Factor")
-tf.flags.DEFINE_integer("learning_rate_decay_every", 2000, "Decay after this many steps")
+tf.flags.DEFINE_integer("learning_rate_decay_every", 4000, "Decay after this many steps")
 tf.flags.DEFINE_string("optimizer", "Adam", "Optimizer (Adam, Adagrad or SGD)")
 
 # Model Parameters
-tf.flags.DEFINE_integer("max_content_length", 100, "Maximum length of context in words")
+tf.flags.DEFINE_integer("max_content_length", 120, "Maximum length of context in words")
 tf.flags.DEFINE_integer("max_utterance_length", 40, "Maximum length of utterance in word")
 tf.flags.DEFINE_integer("embedding_dim", 300, "Embedding dimensionality")
 tf.flags.DEFINE_integer("rnn_dim", 256, "Dimensionality of RNN/LSTM state")
