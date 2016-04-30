@@ -11,10 +11,11 @@ from helpers import load_glove_vectors, evaluate_recall
 
 tf.flags.DEFINE_integer("num_steps", 1000000, "Number of training steps")
 tf.flags.DEFINE_integer("batch_size", 256, "Batch size")
-tf.flags.DEFINE_integer("max_content_length", 80, "Maximum length of context in words")
+tf.flags.DEFINE_float("learning_rate", 0.001, "Learning Rate")
+tf.flags.DEFINE_integer("max_content_length", 120, "Maximum length of context in words")
 tf.flags.DEFINE_integer("max_utterance_length", 40, "Maximum length of utterance in word")
 tf.flags.DEFINE_integer("embedding_dim", 300, "Embedding dimensionality")
-tf.flags.DEFINE_integer("rnn_dim", 256, "Dimensionality of RNN state")
+tf.flags.DEFINE_integer("rnn_dim", 256, "Dimensionality of RNN/LSTM state")
 
 tf.flags.DEFINE_string("data_dir", "./data", "Data directory that contain train/valid/test CSVs")
 
@@ -63,6 +64,20 @@ n_words = len(vocab_processor.vocabulary_)
 print("Total words: {}".format(n_words))
 
 
+# Load glove vectors
+# ==================================================
+vocab_set = set(vocab_processor.vocabulary_._mapping.keys())
+glove_vectors, glove_dict = load_glove_vectors(os.path.join(FLAGS.data_dir, "glove.840B.300d.txt"), vocab_set)
+
+
+# Build initial word embeddings
+# ==================================================
+initial_embeddings = np.random.randn(n_words, EMBEDDING_SIZE).astype("float32")
+for word, vec in glove_dict.items():
+    word_idx = vocab_processor.vocabulary_.get(word)
+    initial_embeddings[word_idx, :] = vec
+
+
 # Define RNN Dual Encoder Model
 # ==================================================
 
@@ -74,15 +89,15 @@ def rnn_encoder_model(X, y):
     utterance_truncated = tf.slice(utterance, [0, 0], [-1, MAX_UTTERANCE_LENGTH])
 
     # Embed context and utterance into the same space
-    with tf.variable_scope("shared_embeddings") as vs:
-        with tf.device('/cpu:0'):
-            word_vectors_context = skflow.ops.categorical_variable(
-                context, n_classes=n_words, embedding_size=EMBEDDING_DIM, name='words')
-            word_list_context = skflow.ops.split_squeeze(1, MAX_CONTEXT_LENGTH, word_vectors_context)
-            vs.reuse_variables()
-            word_vectors_utterance = skflow.ops.categorical_variable(
-                utterance_truncated, n_classes=n_words, embedding_size=EMBEDDING_DIM, name='words')
-            word_list_utterance = skflow.ops.split_squeeze(1, MAX_UTTERANCE_LENGTH, word_vectors_utterance)
+    with tf.variable_scope("shared_embeddings") as vs, tf.device('/cpu:0'):
+        embedding_tensor = tf.convert_to_tensor(initial_embeddings)
+        embeddings = tf.get_variable("word_embeddings", initializer=embedding_tensor)
+        # Embed the context
+        word_vectors_context = skflow.ops.embedding_lookup(embeddings, context)
+        word_list_context = skflow.ops.split_squeeze(1, MAX_CONTEXT_LENGTH, word_vectors_context)
+        # Embed the utterance
+        word_vectors_utterance = skflow.ops.embedding_lookup(embeddings, utterance_truncated)
+        word_list_utterance = skflow.ops.split_squeeze(1, MAX_UTTERANCE_LENGTH, word_vectors_utterance)
 
     # Run context and utterance through the same RNN
     with tf.variable_scope("shared_rnn_params") as vs:
@@ -155,6 +170,8 @@ classifier = tf.contrib.learn.TensorFlowEstimator(
     n_classes=1,
     continue_training=True,
     steps=FLAGS.num_steps,
+    learning_rate=FLAGS.learning_rate,
+    optimizer="Adam",
     batch_size=FLAGS.batch_size)
 
 monitor = ValidationMonitor(print_steps=100, val_steps=1000)
