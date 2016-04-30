@@ -11,7 +11,9 @@ from helpers import load_glove_vectors, evaluate_recall
 
 tf.flags.DEFINE_integer("num_steps", 1000000, "Number of training steps")
 tf.flags.DEFINE_integer("batch_size", 256, "Batch size")
-tf.flags.DEFINE_float("learning_rate", 0.001, "Learning Rate")
+tf.flags.DEFINE_float("learning_rate", 1e-4, "Learning Rate")
+tf.flags.DEFINE_float("learning_rate_decay", 0.95, "Learning Rate Decay Factor")
+tf.flags.DEFINE_integer("learning_rate_decay_every", 2000, "Decay after this many steps")
 tf.flags.DEFINE_integer("max_content_length", 120, "Maximum length of context in words")
 tf.flags.DEFINE_integer("max_utterance_length", 40, "Maximum length of utterance in word")
 tf.flags.DEFINE_integer("embedding_dim", 300, "Embedding dimensionality")
@@ -72,7 +74,7 @@ glove_vectors, glove_dict = load_glove_vectors(os.path.join(FLAGS.data_dir, "glo
 
 # Build initial word embeddings
 # ==================================================
-initial_embeddings = np.random.randn(n_words, EMBEDDING_SIZE).astype("float32")
+initial_embeddings = np.random.randn(n_words, EMBEDDING_DIM).astype("float32")
 for word, vec in glove_dict.items():
     word_idx = vocab_processor.vocabulary_.get(word)
     initial_embeddings[word_idx, :] = vec
@@ -102,9 +104,11 @@ def rnn_encoder_model(X, y):
     # Run context and utterance through the same RNN
     with tf.variable_scope("shared_rnn_params") as vs:
         cell = tf.nn.rnn_cell.BasicLSTMCell(RNN_DIM)
-        _, encoding_context = tf.nn.rnn(cell, word_list_context, dtype=dtypes.float32)
+        context_outputs, _ = tf.nn.rnn(cell, word_list_context, dtype=dtypes.float32)
+        encoding_context = context_outputs[-1]
         vs.reuse_variables()
-        _, encoding_utterance = tf.nn.rnn(cell, word_list_utterance, dtype=dtypes.float32)
+        encoding_outputs, _ = tf.nn.rnn(cell, word_list_utterance, dtype=dtypes.float32)
+        encoding_utterance = encoding_outputs[-1]
 
     with tf.variable_scope("prediction") as vs:
         W = tf.get_variable("W",
@@ -165,12 +169,20 @@ class ValidationMonitor(tf.contrib.learn.monitors.BaseMonitor):
             evaluate_rnn_predictor(validation_df)
 
 
+def learning_rate_decay_func(global_step):
+    return tf.train.exponential_decay(
+        FLAGS.learning_rate,
+        global_step,
+        FLAGS.learning_rate_decay_every,
+        FLAGS.learning_rate_decay,
+        True)
+
 classifier = tf.contrib.learn.TensorFlowEstimator(
     model_fn=rnn_encoder_model,
     n_classes=1,
     continue_training=True,
     steps=FLAGS.num_steps,
-    learning_rate=FLAGS.learning_rate,
+    learning_rate=learning_rate_decay_func,
     optimizer="Adam",
     batch_size=FLAGS.batch_size)
 
