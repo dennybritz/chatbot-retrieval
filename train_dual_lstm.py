@@ -9,16 +9,21 @@ from tensorflow.contrib import skflow
 from tensorflow.python.framework import dtypes
 from helpers import load_glove_vectors, evaluate_recall
 
+# Learning Parameters
 tf.flags.DEFINE_integer("num_steps", 1000000, "Number of training steps")
 tf.flags.DEFINE_integer("batch_size", 256, "Batch size")
 tf.flags.DEFINE_float("learning_rate", 0.01, "Learning Rate")
-tf.flags.DEFINE_float("learning_rate_decay", 0.95, "Learning Rate Decay Factor")
+tf.flags.DEFINE_float("learning_rate_decay_rate", 0.95, "Learning Rate Decay Factor")
 tf.flags.DEFINE_integer("learning_rate_decay_every", 2000, "Decay after this many steps")
-tf.flags.DEFINE_integer("max_content_length", 120, "Maximum length of context in words")
+tf.flags.DEFINE_string("optimizer", "Adam", "Optimizer (Adam, Adagrad or SGD)")
+
+# Model Parameters
+tf.flags.DEFINE_integer("max_content_length", 100, "Maximum length of context in words")
 tf.flags.DEFINE_integer("max_utterance_length", 40, "Maximum length of utterance in word")
 tf.flags.DEFINE_integer("embedding_dim", 300, "Embedding dimensionality")
 tf.flags.DEFINE_integer("rnn_dim", 256, "Dimensionality of RNN/LSTM state")
 
+# Data
 tf.flags.DEFINE_string("data_dir", "./data", "Data directory that contain train/valid/test CSVs")
 
 FLAGS = tf.flags.FLAGS
@@ -71,12 +76,13 @@ print("Total words: {}".format(n_words))
 vocab_set = set(vocab_processor.vocabulary_._mapping.keys())
 glove_vectors, glove_dict = load_glove_vectors(os.path.join(FLAGS.data_dir, "glove.840B.300d.txt"), vocab_set)
 
+
 # Build initial word embeddings
 # ==================================================
 initial_embeddings = np.random.uniform(-0.1, 0.1, (n_words, EMBEDDING_DIM)).astype("float32")
-for word, vec in glove_dict.items():
+for word, glove_word_idx in glove_dict.items():
     word_idx = vocab_processor.vocabulary_.get(word)
-    initial_embeddings[word_idx, :] = vec
+    initial_embeddings[word_idx, :] = glove_vectors[glove_word_idx]
 
 
 # Define RNN Dual Encoder Model
@@ -172,9 +178,9 @@ def learning_rate_decay_func(global_step):
     return tf.train.exponential_decay(
         FLAGS.learning_rate,
         global_step,
-        FLAGS.learning_rate_decay_every,
-        FLAGS.learning_rate_decay,
-        True)
+        decay_steps=FLAGS.learning_rate_decay_every,
+        decay_rate=FLAGS.learning_rate_decay_rate,
+        staircase=True)
 
 classifier = tf.contrib.learn.TensorFlowEstimator(
     model_fn=rnn_encoder_model,
@@ -182,7 +188,7 @@ classifier = tf.contrib.learn.TensorFlowEstimator(
     continue_training=True,
     steps=FLAGS.num_steps,
     learning_rate=learning_rate_decay_func,
-    optimizer="Adam",
+    optimizer=FLAGS.optimizer,
     batch_size=FLAGS.batch_size)
 
 monitor = ValidationMonitor(print_steps=100, val_steps=1000)
