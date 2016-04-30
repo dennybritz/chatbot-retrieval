@@ -51,7 +51,7 @@ y_test = np.zeros(len(test_df))
 # ==================================================
 # Create vocabulary mapping
 all_sentences = np.append(train_df.Context, train_df.Utterance)
-vocab_processor = skflow.preprocessing.VocabularyProcessor(MAX_CONTEXT_LENGTH)
+vocab_processor = skflow.preprocessing.VocabularyProcessor(MAX_CONTEXT_LENGTH, min_frequency=5)
 vocab_processor.fit(all_sentences)
 
 # Transform contexts and utterances
