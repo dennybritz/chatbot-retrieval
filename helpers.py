@@ -1,5 +1,6 @@
 import array
 import numpy as np
+import pandas as pd
 
 
 def load_glove_vectors(filename, vocab=None):
@@ -31,3 +32,17 @@ def evaluate_recall(y, y_labels, n=1):
         if label in predictions[:n]:
             num_correct += 1
     return num_correct/num_examples
+
+
+def convert_to_labeled_df(df):
+    """
+    Converts the test/validation data from the Ubuntu Dialog corpus into a train-like Data Frame with labels.
+    This Data Frame can be used to easily get accuarcy values for cross-validation
+    """
+    result = []
+    for idx, row in df.iterrows():
+        context = row.Context
+        result.append([context, row.iloc[1], 1])
+        for distractor in row.iloc[2:]:
+            result.append([context, distractor, 0])
+    return pd.DataFrame(result, columns=["Context", "Utterance", "Label"])
