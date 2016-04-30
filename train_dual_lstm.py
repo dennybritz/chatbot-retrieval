@@ -11,7 +11,7 @@ from helpers import load_glove_vectors, evaluate_recall
 
 tf.flags.DEFINE_integer("num_steps", 1000000, "Number of training steps")
 tf.flags.DEFINE_integer("batch_size", 256, "Batch size")
-tf.flags.DEFINE_float("learning_rate", 1e-4, "Learning Rate")
+tf.flags.DEFINE_float("learning_rate", 0.01, "Learning Rate")
 tf.flags.DEFINE_float("learning_rate_decay", 0.95, "Learning Rate Decay Factor")
 tf.flags.DEFINE_integer("learning_rate_decay_every", 2000, "Decay after this many steps")
 tf.flags.DEFINE_integer("max_content_length", 120, "Maximum length of context in words")
@@ -71,10 +71,9 @@ print("Total words: {}".format(n_words))
 vocab_set = set(vocab_processor.vocabulary_._mapping.keys())
 glove_vectors, glove_dict = load_glove_vectors(os.path.join(FLAGS.data_dir, "glove.840B.300d.txt"), vocab_set)
 
-
 # Build initial word embeddings
 # ==================================================
-initial_embeddings = np.random.randn(n_words, EMBEDDING_DIM).astype("float32")
+initial_embeddings = np.random.uniform(-0.1, 0.1, (n_words, EMBEDDING_DIM)).astype("float32")
 for word, vec in glove_dict.items():
     word_idx = vocab_processor.vocabulary_.get(word)
     initial_embeddings[word_idx, :] = vec
