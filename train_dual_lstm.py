@@ -134,7 +134,7 @@ def rnn_encoder_model(X, y):
 
         # Calculate loss
         loss = tf.contrib.losses.logistic(scores, tf.expand_dims(y, 1))
-        tf.summary("mean_loss", tf.reduce_mean(loss))
+        tf.scalar_summary("mean_loss", tf.reduce_mean(loss))
 
     return [probs, loss]
 
