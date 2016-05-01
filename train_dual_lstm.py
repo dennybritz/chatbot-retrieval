@@ -15,7 +15,7 @@ tf.flags.DEFINE_integer("batch_size", 256, "Batch size")
 tf.flags.DEFINE_float("learning_rate", 0.001, "Learning Rate")
 tf.flags.DEFINE_float("learning_rate_decay_rate", 1.0, "Learning Rate Decay Factor")
 tf.flags.DEFINE_integer("learning_rate_decay_every", 4000, "Decay after this many steps")
-tf.flags.DEFINE_string("optimizer", "Adam", "Optimizer (Adam, Adagrad or SGD)")
+tf.flags.DEFINE_string("optimizer", "Adagrad", "Optimizer (Adam, Adagrad or SGD)")
 
 # Model Parameters
 tf.flags.DEFINE_integer("max_content_length", 160, "Maximum length of context in words")
