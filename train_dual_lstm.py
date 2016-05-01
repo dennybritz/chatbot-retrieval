@@ -18,8 +18,8 @@ tf.flags.DEFINE_integer("learning_rate_decay_every", 2000, "Decay after this man
 tf.flags.DEFINE_string("optimizer", "Adagrad", "Optimizer (Adam, Adagrad or SGD)")
 
 # Model Parameters
-tf.flags.DEFINE_integer("max_content_length", 160, "Maximum length of context in words")
-tf.flags.DEFINE_integer("max_utterance_length", 60, "Maximum length of utterance in word")
+tf.flags.DEFINE_integer("max_content_length", 100, "Maximum length of context in words")
+tf.flags.DEFINE_integer("max_utterance_length", 40, "Maximum length of utterance in word")
 tf.flags.DEFINE_integer("embedding_dim", 300, "Embedding dimensionality")
 tf.flags.DEFINE_integer("rnn_dim", 256, "Dimensionality of RNN/LSTM state")
 
