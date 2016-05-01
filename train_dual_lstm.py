@@ -12,9 +12,9 @@ from helpers import load_glove_vectors, evaluate_recall
 # Learning Parameters
 tf.flags.DEFINE_integer("num_steps", 1000000, "Number of training steps")
 tf.flags.DEFINE_integer("batch_size", 256, "Batch size")
-tf.flags.DEFINE_float("learning_rate", 0.001, "Learning Rate")
-tf.flags.DEFINE_float("learning_rate_decay_rate", 1.0, "Learning Rate Decay Factor")
-tf.flags.DEFINE_integer("learning_rate_decay_every", 4000, "Decay after this many steps")
+tf.flags.DEFINE_float("learning_rate", 0.01, "Learning Rate")
+tf.flags.DEFINE_float("learning_rate_decay_rate", 0.95, "Learning Rate Decay Factor")
+tf.flags.DEFINE_integer("learning_rate_decay_every", 2000, "Decay after this many steps")
 tf.flags.DEFINE_string("optimizer", "Adagrad", "Optimizer (Adam, Adagrad or SGD)")
 
 # Model Parameters
