@@ -18,7 +18,7 @@ tf.flags.DEFINE_integer("learning_rate_decay_every", 2000, "Decay after this man
 tf.flags.DEFINE_string("optimizer", "Adagrad", "Optimizer (Adam, Adagrad or SGD)")
 
 # Model Parameters
-tf.flags.DEFINE_integer("max_content_length", 100, "Maximum length of context in words")
+tf.flags.DEFINE_integer("max_content_length", 120, "Maximum length of context in words")
 tf.flags.DEFINE_integer("max_utterance_length", 40, "Maximum length of utterance in word")
 tf.flags.DEFINE_integer("embedding_dim", 300, "Embedding dimensionality")
 tf.flags.DEFINE_integer("rnn_dim", 256, "Dimensionality of RNN/LSTM state")
@@ -88,12 +88,29 @@ for word, glove_word_idx in glove_dict.items():
 # Define RNN Dual Encoder Model
 # ==================================================
 
+def get_sequence_length(input_tensor, max_length):
+    """
+    If a sentence is padded, returns the index of the first padding symbol.
+    If the sentence has no padding, returns the max length.
+    """
+    zero_tensor = np.zeros_like(input_tensor)
+    comparsion = tf.equal(input_tensor, zero_tensor)
+    zero_positions = tf.argmax(tf.to_int32(comparsion), 1)
+    position_mask = tf.to_int64(tf.equal(zero_positions, 0))
+    sequence_lengths = zero_positions + position_mask * max_length
+    return sequence_lengths
+
+
 def rnn_encoder_model(X, y):
     # Split input tensor into separare context and utterance tensor
     context, utterance = tf.split(1, 2, X, name='split')
     context = tf.squeeze(context, [1])
     utterance = tf.squeeze(utterance, [1])
     utterance_truncated = tf.slice(utterance, [0, 0], [-1, MAX_UTTERANCE_LENGTH])
+
+    # Calculate the sequence length for RNN calculation
+    context_seq_length = get_sequence_length(context, MAX_CONTEXT_LENGTH)
+    utterance_seq_length = get_sequence_length(utterance, MAX_UTTERANCE_LENGTH)
 
     # Embed context and utterance into the same space
     with tf.variable_scope("shared_embeddings") as vs, tf.device('/cpu:0'):
@@ -109,10 +126,12 @@ def rnn_encoder_model(X, y):
     # Run context and utterance through the same RNN
     with tf.variable_scope("shared_rnn_params") as vs:
         cell = tf.nn.rnn_cell.BasicLSTMCell(RNN_DIM)
-        context_outputs, _ = tf.nn.rnn(cell, word_list_context, dtype=dtypes.float32)
+        context_outputs, _ = tf.nn.rnn(
+            cell, word_list_context, dtype=dtypes.float32, sequence_length=context_seq_length)
         encoding_context = context_outputs[-1]
         vs.reuse_variables()
-        encoding_outputs, _ = tf.nn.rnn(cell, word_list_utterance, dtype=dtypes.float32)
+        encoding_outputs, _ = tf.nn.rnn(
+            cell, word_list_utterance, dtype=dtypes.float32, sequence_length=utterance_seq_length)
         encoding_utterance = encoding_outputs[-1]
 
     with tf.variable_scope("prediction") as vs:
