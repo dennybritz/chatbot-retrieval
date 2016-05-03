@@ -90,7 +90,7 @@ for word, glove_word_idx in glove_dict.items():
 
 def get_sequence_length(input_tensor, max_length):
     """
-    If a sentence is padded, returns the index of the first padding symbol.
+    If a sentence is padded, returns the index of the first 0 (the padding symbol).
     If the sentence has no padding, returns the max length.
     """
     zero_tensor = np.zeros_like(input_tensor)
