@@ -97,7 +97,7 @@ def get_sequence_length(input_tensor, max_length):
     comparsion = tf.equal(input_tensor, zero_tensor)
     zero_positions = tf.argmax(tf.to_int32(comparsion), 1)
     position_mask = tf.to_int64(tf.equal(zero_positions, 0))
-    sequence_lengths = zero_positions - 1 + (position_mask * max_length + 1)
+    sequence_lengths = zero_positions + (position_mask * max_length) + (1 - position_mask) * -1
     return sequence_lengths
 
 
