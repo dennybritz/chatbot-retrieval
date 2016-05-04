@@ -126,13 +126,13 @@ def rnn_encoder_model(X, y):
     # Run context and utterance through the same RNN
     with tf.variable_scope("shared_rnn_params") as vs:
         cell = tf.nn.rnn_cell.BasicLSTMCell(RNN_DIM)
-        context_outputs, _ = tf.nn.rnn(
+        context_outputs, context_state = tf.nn.rnn(
             cell, word_list_context, dtype=dtypes.float32, sequence_length=context_seq_length)
-        encoding_context = context_outputs[-1]
+        encoding_context = tf.slice(context_state, [0, cell.output_size], [-1, -1])
         vs.reuse_variables()
-        encoding_outputs, _ = tf.nn.rnn(
+        utterance_outputs, utterance_state = tf.nn.rnn(
             cell, word_list_utterance, dtype=dtypes.float32, sequence_length=utterance_seq_length)
-        encoding_utterance = encoding_outputs[-1]
+        encoding_utterance = tf.slice(utterance_state, [0, cell.output_size], [-1, -1])
 
     with tf.variable_scope("prediction") as vs:
         W = tf.get_variable("W",
