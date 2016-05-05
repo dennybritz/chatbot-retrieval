@@ -79,7 +79,7 @@ glove_vectors, glove_dict = load_glove_vectors(os.path.join(FLAGS.data_dir, "glo
 
 # Build initial word embeddings
 # ==================================================
-initial_embeddings = np.random.uniform(-0.1, 0.1, (n_words, EMBEDDING_DIM)).astype("float32")
+initial_embeddings = np.random.uniform(-0.25, 0.25, (n_words, EMBEDDING_DIM)).astype("float32")
 for word, glove_word_idx in glove_dict.items():
     word_idx = vocab_processor.vocabulary_.get(word)
     initial_embeddings[word_idx, :] = glove_vectors[glove_word_idx]
@@ -123,7 +123,7 @@ def rnn_encoder_model(X, y):
 
     # Run context and utterance through the same RNN
     with tf.variable_scope("shared_rnn_params") as vs:
-        cell = tf.nn.rnn_cell.BasicLSTMCell(RNN_DIM)
+        cell = tf.nn.rnn_cell.BasicLSTMCell(RNN_DIM, forget_bias=2.0)
         context_outputs, context_state = tf.nn.dynamic_rnn(
             cell, word_vectors_context, dtype=dtypes.float32, sequence_length=context_seq_length)
         encoding_context = tf.slice(context_state, [0, cell.output_size], [-1, -1])
