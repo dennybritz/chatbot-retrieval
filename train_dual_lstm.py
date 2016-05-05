@@ -12,7 +12,7 @@ from helpers import load_glove_vectors, evaluate_recall
 # Learning Parameters
 tf.flags.DEFINE_integer("num_steps", 1000000, "Number of training steps")
 tf.flags.DEFINE_integer("batch_size", 256, "Batch size")
-tf.flags.DEFINE_float("learning_rate", 0.001, "Learning Rate")
+tf.flags.DEFINE_float("learning_rate", 0.01, "Learning Rate")
 tf.flags.DEFINE_float("learning_rate_decay_rate", 1.00, "Learning Rate Decay Factor")
 tf.flags.DEFINE_integer("learning_rate_decay_every", 2000, "Decay after this many steps")
 tf.flags.DEFINE_string("optimizer", "Adagrad", "Optimizer (Adam, Adagrad or SGD)")
@@ -97,7 +97,7 @@ def get_sequence_length(input_tensor, max_length):
     comparsion = tf.equal(input_tensor, zero_tensor)
     zero_positions = tf.argmax(tf.to_int32(comparsion), 1)
     position_mask = tf.to_int64(tf.equal(zero_positions, 0))
-    sequence_lengths = zero_positions + (position_mask * max_length) + (1 - position_mask) * -1
+    sequence_lengths = zero_positions + (position_mask * max_length)
     return sequence_lengths
 
 
@@ -118,20 +118,18 @@ def rnn_encoder_model(X, y):
         embeddings = tf.get_variable("word_embeddings", initializer=embedding_tensor)
         # Embed the context
         word_vectors_context = skflow.ops.embedding_lookup(embeddings, context)
-        word_list_context = skflow.ops.split_squeeze(1, MAX_CONTEXT_LENGTH, word_vectors_context)
         # Embed the utterance
         word_vectors_utterance = skflow.ops.embedding_lookup(embeddings, utterance_truncated)
-        word_list_utterance = skflow.ops.split_squeeze(1, MAX_UTTERANCE_LENGTH, word_vectors_utterance)
 
     # Run context and utterance through the same RNN
     with tf.variable_scope("shared_rnn_params") as vs:
         cell = tf.nn.rnn_cell.BasicLSTMCell(RNN_DIM)
-        context_outputs, context_state = tf.nn.rnn(
-            cell, word_list_context, dtype=dtypes.float32, sequence_length=context_seq_length)
+        context_outputs, context_state = tf.nn.dynamic_rnn(
+            cell, word_vectors_context, dtype=dtypes.float32, sequence_length=context_seq_length)
         encoding_context = tf.slice(context_state, [0, cell.output_size], [-1, -1])
         vs.reuse_variables()
-        utterance_outputs, utterance_state = tf.nn.rnn(
-            cell, word_list_utterance, dtype=dtypes.float32, sequence_length=utterance_seq_length)
+        utterance_outputs, utterance_state = tf.nn.dynamic_rnn(
+            cell, word_vectors_utterance, dtype=dtypes.float32, sequence_length=utterance_seq_length)
         encoding_utterance = tf.slice(utterance_state, [0, cell.output_size], [-1, -1])
 
     with tf.variable_scope("prediction") as vs:
