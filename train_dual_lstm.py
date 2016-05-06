@@ -12,13 +12,13 @@ from helpers import load_glove_vectors, evaluate_recall
 # Learning Parameters
 tf.flags.DEFINE_integer("num_steps", 1000000, "Number of training steps")
 tf.flags.DEFINE_integer("batch_size", 256, "Batch size")
-tf.flags.DEFINE_float("learning_rate", 0.01, "Learning Rate")
-tf.flags.DEFINE_float("learning_rate_decay_rate", 1.00, "Learning Rate Decay Factor")
-tf.flags.DEFINE_integer("learning_rate_decay_every", 2000, "Decay after this many steps")
-tf.flags.DEFINE_string("optimizer", "Adagrad", "Optimizer (Adam, Adagrad or SGD)")
+tf.flags.DEFINE_float("learning_rate", 0.001, "Learning Rate")
+tf.flags.DEFINE_float("learning_rate_decay_rate", 0.1, "Learning Rate Decay Factor")
+tf.flags.DEFINE_integer("learning_rate_decay_every", 3000, "Decay after this many steps")
+tf.flags.DEFINE_string("optimizer", "Adam", "Optimizer (Adam, Adagrad or SGD)")
 
 # Model Parameters
-tf.flags.DEFINE_integer("max_content_length", 120, "Maximum length of context in words")
+tf.flags.DEFINE_integer("max_content_length", 80, "Maximum length of context in words")
 tf.flags.DEFINE_integer("max_utterance_length", 40, "Maximum length of utterance in word")
 tf.flags.DEFINE_integer("embedding_dim", 300, "Embedding dimensionality")
 tf.flags.DEFINE_integer("rnn_dim", 256, "Dimensionality of RNN/LSTM state")
@@ -45,7 +45,8 @@ RNN_DIM = FLAGS.rnn_dim
 
 # Load Data
 # ==================================================
-print("Loading data...")
+
+print("Loading data...NO.2")
 train_df = pd.read_csv(os.path.join(FLAGS.data_dir, "train.csv"))
 test_df = pd.read_csv(os.path.join(FLAGS.data_dir, "test.csv"))
 validation_df = pd.read_csv(os.path.join(FLAGS.data_dir, "valid.csv"))
@@ -118,18 +119,23 @@ def rnn_encoder_model(X, y):
         embeddings = tf.get_variable("word_embeddings", initializer=embedding_tensor)
         # Embed the context
         word_vectors_context = skflow.ops.embedding_lookup(embeddings, context)
+        word_list_context = skflow.ops.split_squeeze(1, MAX_CONTEXT_LENGTH, word_vectors_context)
         # Embed the utterance
         word_vectors_utterance = skflow.ops.embedding_lookup(embeddings, utterance_truncated)
+        word_list_utterance = skflow.ops.split_squeeze(1, MAX_UTTERANCE_LENGTH, word_vectors_utterance)
 
     # Run context and utterance through the same RNN
     with tf.variable_scope("shared_rnn_params") as vs:
-        cell = tf.nn.rnn_cell.BasicLSTMCell(RNN_DIM, forget_bias=2.0)
-        context_outputs, context_state = tf.nn.dynamic_rnn(
-            cell, word_vectors_context, dtype=dtypes.float32, sequence_length=context_seq_length)
+
+        #lsy modified the forget_bias = 2.0
+        cell = tf.nn.rnn_cell.LSTMCell(RNN_DIM, forget_bias=2.0)
+        cell = tf.nn.rnn_cell.DropoutWrapper(cell,output_keep_prob=0.5)
+        context_outputs, context_state = tf.nn.rnn(
+            cell, word_list_context, dtype=dtypes.float32, sequence_length=context_seq_length)
         encoding_context = tf.slice(context_state, [0, cell.output_size], [-1, -1])
         vs.reuse_variables()
-        utterance_outputs, utterance_state = tf.nn.dynamic_rnn(
-            cell, word_vectors_utterance, dtype=dtypes.float32, sequence_length=utterance_seq_length)
+        utterance_outputs, utterance_state = tf.nn.rnn(
+            cell, word_list_utterance, dtype=dtypes.float32, sequence_length=utterance_seq_length)
         encoding_utterance = tf.slice(utterance_state, [0, cell.output_size], [-1, -1])
 
     with tf.variable_scope("prediction") as vs:
