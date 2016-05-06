@@ -13,6 +13,7 @@ from helpers import load_glove_vectors, evaluate_recall
 tf.flags.DEFINE_integer("num_steps", 1000000, "Number of training steps")
 tf.flags.DEFINE_integer("batch_size", 256, "Batch size")
 tf.flags.DEFINE_float("learning_rate", 0.001, "Learning Rate")
+tf.flags.DEFINE_float("dropout_keep_prob", 0.5, "Dropout Keep Probability")
 tf.flags.DEFINE_float("learning_rate_decay_rate", 0.1, "Learning Rate Decay Factor")
 tf.flags.DEFINE_integer("learning_rate_decay_every", 3000, "Decay after this many steps")
 tf.flags.DEFINE_string("optimizer", "Adam", "Optimizer (Adam, Adagrad or SGD)")
@@ -124,9 +125,8 @@ def rnn_encoder_model(X, y):
 
     # Run context and utterance through the same RNN
     with tf.variable_scope("shared_rnn_params") as vs:
-
         cell = tf.nn.rnn_cell.LSTMCell(RNN_DIM, forget_bias=2.0)
-        cell = tf.nn.rnn_cell.DropoutWrapper(cell, output_keep_prob=0.5)
+        cell = tf.nn.rnn_cell.DropoutWrapper(cell, output_keep_prob=FLAGS.dropout_keep_prob)
         context_outputs, context_state = tf.nn.dynamic_rnn(
             cell, word_vectors_context, dtype=dtypes.float32, sequence_length=context_seq_length)
         encoding_context = tf.slice(context_state, [0, cell.output_size], [-1, -1])
