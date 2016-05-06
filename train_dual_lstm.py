@@ -46,7 +46,7 @@ RNN_DIM = FLAGS.rnn_dim
 # Load Data
 # ==================================================
 
-print("Loading data...NO.2")
+print("Loading data...")
 train_df = pd.read_csv(os.path.join(FLAGS.data_dir, "train.csv"))
 test_df = pd.read_csv(os.path.join(FLAGS.data_dir, "test.csv"))
 validation_df = pd.read_csv(os.path.join(FLAGS.data_dir, "valid.csv"))
@@ -119,23 +119,20 @@ def rnn_encoder_model(X, y):
         embeddings = tf.get_variable("word_embeddings", initializer=embedding_tensor)
         # Embed the context
         word_vectors_context = skflow.ops.embedding_lookup(embeddings, context)
-        word_list_context = skflow.ops.split_squeeze(1, MAX_CONTEXT_LENGTH, word_vectors_context)
         # Embed the utterance
         word_vectors_utterance = skflow.ops.embedding_lookup(embeddings, utterance_truncated)
-        word_list_utterance = skflow.ops.split_squeeze(1, MAX_UTTERANCE_LENGTH, word_vectors_utterance)
 
     # Run context and utterance through the same RNN
     with tf.variable_scope("shared_rnn_params") as vs:
 
-        #lsy modified the forget_bias = 2.0
         cell = tf.nn.rnn_cell.LSTMCell(RNN_DIM, forget_bias=2.0)
-        cell = tf.nn.rnn_cell.DropoutWrapper(cell,output_keep_prob=0.5)
-        context_outputs, context_state = tf.nn.rnn(
-            cell, word_list_context, dtype=dtypes.float32, sequence_length=context_seq_length)
+        cell = tf.nn.rnn_cell.DropoutWrapper(cell, output_keep_prob=0.5)
+        context_outputs, context_state = tf.nn.dynamic_rnn(
+            cell, word_vectors_context, dtype=dtypes.float32, sequence_length=context_seq_length)
         encoding_context = tf.slice(context_state, [0, cell.output_size], [-1, -1])
         vs.reuse_variables()
-        utterance_outputs, utterance_state = tf.nn.rnn(
-            cell, word_list_utterance, dtype=dtypes.float32, sequence_length=utterance_seq_length)
+        utterance_outputs, utterance_state = tf.nn.dynamic_rnn(
+            cell, word_vectors_utterance, dtype=dtypes.float32, sequence_length=utterance_seq_length)
         encoding_utterance = tf.slice(utterance_state, [0, cell.output_size], [-1, -1])
 
     with tf.variable_scope("prediction") as vs:
