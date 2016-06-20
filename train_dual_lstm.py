@@ -4,15 +4,19 @@ import pandas as pd
 import numpy as np
 import os
 import tensorflow as tf
-from tensorflow.models.rnn import rnn, rnn_cell
-from tensorflow.contrib import skflow
+import time
+from tensorflow.contrib import learn
+from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.framework import dtypes
 from helpers import load_glove_vectors, evaluate_recall
+
+logging.set_verbosity(10)
 
 # Learning Parameters
 tf.flags.DEFINE_integer("num_steps", 1000000, "Number of training steps")
 tf.flags.DEFINE_integer("batch_size", 256, "Batch size")
 tf.flags.DEFINE_float("learning_rate", 0.001, "Learning Rate")
+tf.flags.DEFINE_boolean("use_glove", False, "Use pre-trained glove vectors")
 tf.flags.DEFINE_float("dropout_keep_prob", 0.5, "Dropout Keep Probability")
 tf.flags.DEFINE_float("learning_rate_decay_rate", 0.1, "Learning Rate Decay Factor")
 tf.flags.DEFINE_integer("learning_rate_decay_every", 3000, "Decay after this many steps")
@@ -49,8 +53,8 @@ RNN_DIM = FLAGS.rnn_dim
 
 print("Loading data...")
 train_df = pd.read_csv(os.path.join(FLAGS.data_dir, "train.csv"))
-test_df = pd.read_csv(os.path.join(FLAGS.data_dir, "test.csv"))
 validation_df = pd.read_csv(os.path.join(FLAGS.data_dir, "valid.csv"))
+test_df = pd.read_csv(os.path.join(FLAGS.data_dir, "test.csv"))
 y_test = np.zeros(len(test_df))
 
 
@@ -58,7 +62,7 @@ y_test = np.zeros(len(test_df))
 # ==================================================
 # Create vocabulary mapping
 all_sentences = np.append(train_df.Context, train_df.Utterance)
-vocab_processor = skflow.preprocessing.VocabularyProcessor(MAX_CONTEXT_LENGTH, min_frequency=5)
+vocab_processor = learn.preprocessing.VocabularyProcessor(MAX_CONTEXT_LENGTH, min_frequency=5)
 vocab_processor.fit(all_sentences)
 
 # Transform contexts and utterances
@@ -72,19 +76,58 @@ y_train = train_df.Label
 n_words = len(vocab_processor.vocabulary_)
 print("Total words: {}".format(n_words))
 
+# Convert to tf.Example Proto
+timestamp = str(int(time.time()))
+out_dir = os.path.abspath(os.path.join(os.path.curdir, "tmp", timestamp))
+if not os.path.exists(out_dir):
+    os.makedirs(out_dir)
+
+print("Writing to {}".format(out_dir))
+tfrecords_filename = os.path.join(out_dir, "train.tfrecords")
+writer = tf.python_io.TFRecordWriter(tfrecords_filename)
+for index in range(len(X_train)):
+    context = tf.train.Feature(int64_list=tf.train.Int64List(value=X_train[index][0].tolist()))
+    utterance = tf.train.Feature(int64_list=tf.train.Int64List(value=X_train[index][1].tolist()))
+    label = tf.train.Feature(int64_list=tf.train.Int64List(value=[y_train[index].item()]))
+    example = tf.train.Example(features=tf.train.Features(feature={
+        'context': context,
+        'utterance': utterance,
+        'label': label}))
+    writer.write(example.SerializeToString())
+writer.close()
+
+
+# Input Examples
+def get_input():
+    filename_queue = tf.train.string_input_producer([tfrecords_filename], num_epochs=100)
+    reader = tf.TFRecordReader()
+    _, serialized_example = reader.read(filename_queue)
+    decoded = tf.parse_single_example(
+        serialized_example,
+        features={
+            'context': tf.FixedLenFeature([MAX_CONTEXT_LENGTH], tf.int64),
+            'utterance': tf.FixedLenFeature([MAX_CONTEXT_LENGTH], tf.int64),
+            'label': tf.FixedLenFeature([], tf.int64),
+        })
+    example_X = tf.concat(0, [tf.expand_dims(decoded['context'], 0), tf.expand_dims(decoded['utterance'], 0)])
+    example_y = decoded['label']
+    return tf.train.batch([example_X, example_y], FLAGS.batch_size)
+
 
 # Load glove vectors
 # ==================================================
-vocab_set = set(vocab_processor.vocabulary_._mapping.keys())
-glove_vectors, glove_dict = load_glove_vectors(os.path.join(FLAGS.data_dir, "glove.840B.300d.txt"), vocab_set)
+if FLAGS.use_glove:
+    vocab_set = set(vocab_processor.vocabulary_._mapping.keys())
+    glove_vectors, glove_dict = load_glove_vectors(os.path.join(FLAGS.data_dir, "glove.840B.300d.txt"), vocab_set)
 
 
 # Build initial word embeddings
 # ==================================================
 initial_embeddings = np.random.uniform(-0.25, 0.25, (n_words, EMBEDDING_DIM)).astype("float32")
-for word, glove_word_idx in glove_dict.items():
-    word_idx = vocab_processor.vocabulary_.get(word)
-    initial_embeddings[word_idx, :] = glove_vectors[glove_word_idx]
+if FLAGS.use_glove:
+    for word, glove_word_idx in glove_dict.items():
+        word_idx = vocab_processor.vocabulary_.get(word)
+        initial_embeddings[word_idx, :] = glove_vectors[glove_word_idx]
 
 
 # Define RNN Dual Encoder Model
@@ -119,9 +162,9 @@ def rnn_encoder_model(X, y):
         embedding_tensor = tf.convert_to_tensor(initial_embeddings)
         embeddings = tf.get_variable("word_embeddings", initializer=embedding_tensor)
         # Embed the context
-        word_vectors_context = skflow.ops.embedding_lookup(embeddings, context)
+        word_vectors_context = learn.ops.embedding_lookup(embeddings, context)
         # Embed the utterance
-        word_vectors_utterance = skflow.ops.embedding_lookup(embeddings, utterance_truncated)
+        word_vectors_utterance = learn.ops.embedding_lookup(embeddings, utterance_truncated)
 
     # Run context and utterance through the same RNN
     with tf.variable_scope("shared_rnn_params") as vs:
@@ -143,20 +186,23 @@ def rnn_encoder_model(X, y):
 
         # We can interpret this is a "Generated context"
         generated_context = tf.matmul(encoding_utterance, W)
+        # return learn.models.logistic_regression(generated_context, tf.expand_dims(y, 1))
         # Batch multiply contexts and utterances (batch_matmul only works with 3-d tensors)
         generated_context = tf.expand_dims(generated_context, 2)
         encoding_context = tf.expand_dims(encoding_context, 2)
-        scores = tf.batch_matmul(generated_context, encoding_context, True) + b
-        # Go from [15,1,1] to [15,1]: We want a vector of 15 scores
-        scores = tf.squeeze(scores, [2])
-        # Convert scores into probabilities
-        probs = tf.sigmoid(scores)
+        logits = tf.batch_matmul(generated_context, encoding_context, True) + b
+        logits = tf.squeeze(logits)
+        probs = tf.sigmoid(logits)
+        losses = tf.nn.sigmoid_cross_entropy_with_logits(logits, tf.to_float(y))
 
-        # Calculate loss
-        loss = tf.contrib.losses.logistic(scores, tf.expand_dims(y, 1))
-        tf.scalar_summary("mean_loss", tf.reduce_mean(loss))
+    mean_loss = tf.reduce_mean(losses, name="mean_loss")
+    train_op = tf.contrib.layers.optimize_loss(
+      mean_loss, tf.contrib.framework.get_global_step(),
+      optimizer=FLAGS.optimizer,
+      learning_rate=FLAGS.learning_rate,
+      moving_average_decay=None)
 
-    return [probs, loss]
+    return {'class': tf.argmax(probs, 1), 'prob': probs}, mean_loss, train_op
 
 
 def predict_rnn_batch(contexts, utterances, n=1):
@@ -182,17 +228,15 @@ def evaluate_rnn_predictor(df):
         print("Recall @ ({}, 10): {:g}".format(n, evaluate_recall(y, y_test, n)))
 
 
-class ValidationMonitor(tf.contrib.learn.monitors.BaseMonitor):
-    def __init__(self, print_steps=100, early_stopping_rounds=None, verbose=1, val_steps=1000):
+class ValidationMonitor(tf.contrib.learn.monitors.EveryN):
+    def __init__(self, every_n_steps=100, early_stopping_rounds=None, verbose=1, val_steps=1000):
         super(ValidationMonitor, self).__init__(
-            print_steps=print_steps,
-            early_stopping_rounds=early_stopping_rounds,
-            verbose=verbose)
-        self.val_steps = val_steps
+            every_n_steps=every_n_steps,
+            first_n_steps=1)
 
-    def _modify_summary_string(self):
-        if self.steps % self.val_steps == 0:
-            evaluate_rnn_predictor(validation_df)
+    def every_n_step_end(self, step, outputs):
+        super(ValidationMonitor, self).every_n_step_end(step, outputs)
+        evaluate_rnn_predictor(validation_df)
 
 
 def learning_rate_decay_func(global_step):
@@ -203,14 +247,10 @@ def learning_rate_decay_func(global_step):
         decay_rate=FLAGS.learning_rate_decay_rate,
         staircase=True)
 
-classifier = tf.contrib.learn.TensorFlowEstimator(
+classifier = tf.contrib.learn.Estimator(
     model_fn=rnn_encoder_model,
-    n_classes=1,
-    continue_training=True,
-    steps=FLAGS.num_steps,
-    learning_rate=learning_rate_decay_func,
-    optimizer=FLAGS.optimizer,
-    batch_size=FLAGS.batch_size)
+    model_dir='./tmp/tf/dual_lstm_chatbot/')
 
-monitor = ValidationMonitor(print_steps=100, val_steps=1000)
-classifier.fit(X_train, y_train, logdir='./tmp/tf/dual_lstm_chatbot/', monitor=monitor)
+# monitor = ValidationMonitor(every_n_steps=100)
+monitor = learn.monitors.ValidationMonitor(X_train[:500], y_train[:500])
+classifier.fit(input_fn=get_input, steps=None, monitors=[monitor])
