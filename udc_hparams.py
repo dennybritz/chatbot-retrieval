@@ -6,7 +6,7 @@ tf.flags.DEFINE_integer("vocab_size", 91620, "")
 tf.flags.DEFINE_integer("embedding_dim", 50, "")
 tf.flags.DEFINE_integer("rnn_dim", 128, "")
 tf.flags.DEFINE_integer("max_context_len", 80, "")
-tf.flags.DEFINE_integer("max_utterance_len", 60, "")
+tf.flags.DEFINE_integer("max_utterance_len", 40, "")
 tf.flags.DEFINE_float("dropout_keep_prob", 1.0, "")
 
 # Pre-trained embeddings
@@ -14,7 +14,7 @@ tf.flags.DEFINE_string("glove_path", None, "Path to pre-trained Glove vectors")
 tf.flags.DEFINE_string("vocab_path", None, "Path to vocabulary.txt file")
 
 # Training Parameters
-tf.flags.DEFINE_float("learning_rate", 0.001, "")
+tf.flags.DEFINE_float("learning_rate", 0.01, "")
 tf.flags.DEFINE_integer("batch_size", 64, "")
 tf.flags.DEFINE_integer("eval_batch_size", 8, "")
 tf.flags.DEFINE_string("optimizer", "Adagrad", "")

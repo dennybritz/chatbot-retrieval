@@ -39,7 +39,7 @@ def main(unused_argv):
     mode=tf.contrib.learn.ModeKeys.TRAIN,
     input_file=[TRAIN_FILE],
     batch_size=hparams.batch_size,
-    num_epochs=FLAGS.num_epochs)
+    num_epochs=1)
 
   input_fn_eval = udc_inputs.create_input_fn(
     mode=tf.contrib.learn.ModeKeys.EVAL,
@@ -57,8 +57,8 @@ def main(unused_argv):
   #   metrics=udc_metrics.create_evaluation_metrics(hparams)
   # )
 
-  for i in itertools.count(1):
-    estimator.fit(input_fn=input_fn_train, steps=FLAGS.eval_every * i)
+  while True:
+    estimator.fit(input_fn=input_fn_train, steps=None)
     estimator.evaluate(input_fn=input_fn_eval, steps=FLAGS.num_eval_steps, metrics=eval_metrics)
 
 
