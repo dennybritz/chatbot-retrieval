@@ -35,12 +35,6 @@ def main(unused_argv):
     model_dir=MODEL_DIR,
     config=tf.contrib.learn.RunConfig())
 
-  input_fn_train = udc_inputs.create_input_fn(
-    mode=tf.contrib.learn.ModeKeys.TRAIN,
-    input_file=[TRAIN_FILE],
-    batch_size=hparams.batch_size,
-    num_epochs=1)
-
   input_fn_eval = udc_inputs.create_input_fn(
     mode=tf.contrib.learn.ModeKeys.EVAL,
     input_file=[VALIDATION_FILE],
@@ -58,6 +52,11 @@ def main(unused_argv):
   # )
 
   while True:
+    input_fn_train = udc_inputs.create_input_fn(
+      mode=tf.contrib.learn.ModeKeys.TRAIN,
+      input_file=[TRAIN_FILE],
+      batch_size=hparams.batch_size,
+      num_epochs=1)    
     estimator.fit(input_fn=input_fn_train, steps=None)
     estimator.evaluate(input_fn=input_fn_eval, steps=FLAGS.num_eval_steps, metrics=eval_metrics)
 
