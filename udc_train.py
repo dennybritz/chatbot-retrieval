@@ -9,7 +9,7 @@ import udc_inputs
 from models.dual_encoder import dual_encoder_model
 
 tf.flags.DEFINE_string("input_dir", "./data", "")
-tf.flags.DEFINE_string("model_dir", "./runs", "")
+tf.flags.DEFINE_string("model_dir", None, "")
 tf.flags.DEFINE_integer("loglevel", 20, "Log level")
 tf.flags.DEFINE_integer("num_epochs", None, "Number of Training Epochs")
 tf.flags.DEFINE_integer("eval_every", 1000, "Evaluate after this many train steps")
@@ -17,7 +17,10 @@ tf.flags.DEFINE_integer("num_eval_steps", 100, "Number of Eval Steps")
 FLAGS = tf.flags.FLAGS
 
 TIMESTAMP = int(time.time())
-MODEL_DIR = os.path.abspath(os.path.join(FLAGS.model_dir, str(TIMESTAMP)))
+if FLAGS.model_dir:
+  MODEL_DIR = FLAGS.model_dir
+else:
+  MODEL_DIR = os.path.abspath(os.path.join("./runs", str(TIMESTAMP)))
 TRAIN_FILE = os.path.abspath(os.path.join(FLAGS.input_dir, "train.tfrecords"))
 VALIDATION_FILE = os.path.abspath(os.path.join(FLAGS.input_dir, "validation.tfrecords"))
 
