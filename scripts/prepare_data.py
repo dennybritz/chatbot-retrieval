@@ -56,7 +56,18 @@ def transform_sentence(sequence, vocab_processor):
   """
   Maps a single sentence into the integer vocabulary. Returns a python array.
   """
-  return list(vocab_processor.transform([sequence]))[0].tolist()
+  tokenized = next(vocab_processor._tokenizer([sequence]))
+  return [vocab_processor.vocabulary_.get(token) for token in tokenized]
+
+
+def create_text_sequence_feature(fl, sentence, sentence_len, vocab):
+  """
+  Writes a sentence to FeatureList protocol buffer
+  """
+  sentence_transformed = transform_sentence(sentence, vocab)
+  for word_id in sentence_transformed:
+    fl.feature.add().int64_list.value.extend([word_id])
+  return fl
 
 
 def create_example_train(row, vocab):
@@ -65,38 +76,21 @@ def create_example_train(row, vocab):
   Returnsthe a tensorflow.Example Protocol Buffer object.
   """
   context, utterance, label = row
+  context_len = len(next(vocab._tokenizer([context])))
+  utterance_len = len(next(vocab._tokenizer([utterance])))
   label = int(float(label))
 
-  # Context
-  context_feature = tf.train.Feature(int64_list=tf.train.Int64List(
-      value=transform_sentence(context, vocab)))
-  context_text_feature = tf.train.Feature(bytes_list=tf.train.BytesList(
-      value=[context.encode()]))
+  # New Sequence Example
+  example = tf.train.SequenceExample()
+  example.context.feature["label"].int64_list.value.extend([label])
+  example.context.feature["context_len"].int64_list.value.extend([context_len])
+  example.context.feature["utterance_len"].int64_list.value.extend([utterance_len])
+  
+  create_text_sequence_feature(
+    example.feature_lists.feature_list["context"], context, context_len, vocab)
+  create_text_sequence_feature(
+    example.feature_lists.feature_list["utterance"], utterance, utterance_len, vocab)
 
-  # Context Length
-  context_len = len(next(vocab._tokenizer([context])))
-  context_len_feature = tf.train.Feature(int64_list=tf.train.Int64List(value=[context_len]))
-
-  # Utterance
-  utterance_feature = tf.train.Feature(int64_list=tf.train.Int64List(
-      value=transform_sentence(utterance, vocab)))
-  utterance_text_feature = tf.train.Feature(bytes_list=tf.train.BytesList(
-      value=[utterance.encode()]))
-
-  # Utterance Length
-  utterance_len = len(next(vocab._tokenizer([utterance])))
-  utterance_len_feature = tf.train.Feature(int64_list=tf.train.Int64List(value=[utterance_len]))
-
-  label_feature = tf.train.Feature(int64_list=tf.train.Int64List(value=[label]))
-  example = tf.train.Example(features=tf.train.Features(feature={
-      "context": context_feature,
-      # "context_text": context_text_feature,
-      "context_len": context_len_feature,
-      "utterance": utterance_feature,
-      # "utterance_text": utterance_text_feature,
-      "utterance_len": utterance_len_feature,
-      "label": label_feature
-  }))
   return example
 
 
@@ -107,47 +101,28 @@ def create_example_test(row, vocab):
   """  
   context, utterance = row[:2]
   distractors = row[2:]
-  context_feature = tf.train.Feature(int64_list=tf.train.Int64List(
-      value=transform_sentence(context, vocab)))
-  context_text_feature = tf.train.Feature(bytes_list=tf.train.BytesList(
-      value=[context.encode()]))
-
-  # Context Length
   context_len = len(next(vocab._tokenizer([context])))
-  context_len_feature = tf.train.Feature(int64_list=tf.train.Int64List(value=[context_len]))
-
-  utterance_feature = tf.train.Feature(int64_list=tf.train.Int64List(
-      value=transform_sentence(utterance, vocab)))
-  utterance_text_feature = tf.train.Feature(bytes_list=tf.train.BytesList(
-      value=[utterance.encode()]))
-
-  # Utterance Length
   utterance_len = len(next(vocab._tokenizer([utterance])))
-  utterance_len_feature = tf.train.Feature(int64_list=tf.train.Int64List(value=[utterance_len]))
 
-  feature_map = {
-      "context": context_feature,
-      "context_len": context_len_feature,
-      # "context_text": context_text_feature,
-      "utterance": utterance_feature,
-      # "utterance_text": utterance_text_feature,
-      "utterance_len": utterance_len_feature,
-  }
+  # New Sequence Example
+  example = tf.train.SequenceExample()
+  example.context.feature["context_len"].int64_list.value.extend([context_len])
+  example.context.feature["utterance_len"].int64_list.value.extend([utterance_len])  
+  create_text_sequence_feature(
+    example.feature_lists.feature_list["context"], context, context_len, vocab)
+  create_text_sequence_feature(
+    example.feature_lists.feature_list["utterance"], utterance, utterance_len, vocab)
+
+  # Distractor sequences
   for i, distractor in enumerate(distractors):
-    # Distractor Feature
-    distractor_ids = transform_sentence(distractor, vocab)
-    feature_map["distractor_{}".format(i)] = tf.train.Feature(
-        int64_list=tf.train.Int64List(value=distractor_ids))
-
-    # distractor_text_feature = tf.train.Feature(bytes_list=tf.train.BytesList(value=[distractor.encode()]))
-    # feature_map["distractor_{}_text".format(i)] = distractor_text_feature
-
-    # Distractor Length
+    dis_key = "distractor_{}".format(i)
+    dis_len_key = "distractor_{}_len".format(i)    
+    # Distractor Length Feature
     dis_len = len(next(vocab._tokenizer([distractor])))
-    dis_len_feature = tf.train.Feature(int64_list=tf.train.Int64List(value=[dis_len]))
-    feature_map["distractor_{}_len".format(i)] = dis_len_feature
-
-  example = tf.train.Example(features=tf.train.Features(feature=feature_map))
+    example.context.feature[dis_len_key].int64_list.value.extend([dis_len])
+    # Distractor Text Feature
+    create_text_sequence_feature(
+      example.feature_lists.feature_list[dis_key], distractor, dis_len, vocab)
   return example
 
 
@@ -184,9 +159,9 @@ if __name__ == "__main__":
   vocab = create_vocab(input_iter, min_frequency=FLAGS.min_word_frequency)
   print("Total vocabulary size: {}".format(len(vocab.vocabulary_)))
 
+  # Create vocabulary.txt file
   write_vocabulary(
-      vocab,
-      os.path.join(FLAGS.output_dir, "vocabulary.txt"))
+    vocab, os.path.join(FLAGS.output_dir, "vocabulary.txt"))
 
   # Create validation.tfrecords
   create_tfrecords_file(

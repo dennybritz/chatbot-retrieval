@@ -60,6 +60,14 @@ def create_model_fn_for_recall(hparams, model_impl):
           tf.zeros([hparams.eval_batch_size, 1], dtype=tf.int64)
         )
 
+      # Pad all the utterances to the same length. Needed for concat
+      max_lens = [tf.to_int64(tf.size(u) / hparams.eval_batch_size) for u in all_utterances]
+      max_utterance_len = tf.reduce_max(tf.pack(max_lens))
+      for i, utterance in enumerate(all_utterances):
+        pad_right = tf.to_int32(max_utterance_len - max_lens[i])
+        padding = tf.convert_to_tensor([[0,0],[0,1]]) * pad_right
+        all_utterances[i] = tf.pad(utterance, padding)
+
       probs, loss = model_impl(
           hparams,
           mode,

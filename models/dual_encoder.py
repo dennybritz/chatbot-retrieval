@@ -53,12 +53,20 @@ def dual_encoder_model(
         output_keep_prob=dropout_keep_prob)
 
     # Run the utterance and context through the RNN
-    rnn_outputs, rnn_states = tf.nn.dynamic_rnn(
+    _, encoding_context = tf.nn.dynamic_rnn(
         cell,
-        tf.concat(0, [context_embedded, utterance_embedded]),
-        sequence_length=tf.concat(0, [context_len, utterance_len]),
+        context_embedded,
+        sequence_length=context_len,
         dtype=tf.float32)
-    encoding_context, encoding_utterance = tf.split(0, 2, rnn_states.h)
+    encoding_context = encoding_context.h
+
+    vs.reuse_variables()
+    _, encoding_utterance = tf.nn.dynamic_rnn(
+        cell,
+        utterance_embedded,
+        sequence_length=utterance_len,
+        dtype=tf.float32)
+    encoding_utterance = encoding_utterance.h
 
   with tf.variable_scope("prediction") as vs:
     # Prediction parameters

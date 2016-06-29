@@ -1,70 +1,57 @@
 import tensorflow as tf
 
-TEXT_DIMENSION = 160
-
-
-def get_feature_columns(mode):
-  feature_columns = []
-
-  # Context
-  context_ids = tf.contrib.layers.real_valued_column(
-      column_name="context", dimension=TEXT_DIMENSION, dtype=tf.int64)
-  feature_columns.append(context_ids)
-
-  # Context Length
-  context_lens = tf.contrib.layers.real_valued_column(
-      column_name="context_len", dimension=1, dtype=tf.int64)
-  feature_columns.append(context_lens)
-
-  # Utterance
-  utterance_ids = tf.contrib.layers.real_valued_column(
-      column_name="utterance", dimension=TEXT_DIMENSION, dtype=tf.int64)
-  feature_columns.append(utterance_ids)
-
-  # Utterance Length
-  utterance_lens = tf.contrib.layers.real_valued_column(
-      column_name="utterance_len", dimension=1, dtype=tf.int64)
-  feature_columns.append(utterance_lens)
-
+def get_features(mode):
+  context_features = dict()
+  context_features["context_len"] = tf.FixedLenFeature([], dtype=tf.int64)
+  context_features["utterance_len"] = tf.FixedLenFeature([], dtype=tf.int64)
   if mode == tf.contrib.learn.ModeKeys.TRAIN:
-    labels = tf.contrib.layers.real_valued_column(
-      column_name="label", dimension=1, dtype=tf.int64)
-    feature_columns.append(labels)
+     context_features["label"] = tf.FixedLenFeature([], dtype=tf.int64)
   else:
     for i in range(9):
-      # Distractor
-      distractor_ids = tf.contrib.layers.real_valued_column(
-          column_name="distractor_{}".format(i),
-          dimension=TEXT_DIMENSION,
-          dtype=tf.int64)
-      feature_columns.append(distractor_ids)
+      context_features["distractor_{}_len".format(i)] = tf.FixedLenFeature([], dtype=tf.int64)
 
-      # Distractor Length
-      distractor_len = tf.contrib.layers.real_valued_column(
-          column_name="distractor_{}_len".format(i),
-          dimension=1,
-          dtype=tf.int64)
-      feature_columns.append(distractor_len)
+  sequence_features = dict()
+  sequence_features["context"] = tf.FixedLenSequenceFeature([], dtype=tf.int64)
+  sequence_features["utterance"] = tf.FixedLenSequenceFeature([], dtype=tf.int64)
+  if mode != tf.contrib.learn.ModeKeys.TRAIN:
+    for i in range(9):
+      sequence_features["distractor_{}".format(i)] = tf.FixedLenSequenceFeature([], dtype=tf.int64)
 
-  return set(feature_columns)
+  return [context_features, sequence_features]
 
 
 def create_input_fn(mode, input_file, batch_size, num_epochs=None):
   def input_fn():
-    features = tf.contrib.layers.create_feature_spec_for_parsing(get_feature_columns(mode))
-    feature_map = tf.contrib.learn.io.read_batch_record_features(
-        file_pattern=input_file,
-        batch_size=batch_size,
-        features=features,
-        randomize_input=True,
-        num_epochs=num_epochs,
-        queue_capacity=batch_size * 3)
+    # Get feature columns based on current mode (train/test)
+    context_features, sequence_features = get_features(mode)
+    # Read an example
+    file_queue = tf.train.string_input_producer(input_file, num_epochs=num_epochs)
+    reader = tf.TFRecordReader()
+    seq_key, serialized_example = reader.read(file_queue)
+    # Decode the SequenceExample protocol buffer
+    context, sequence = tf.parse_single_sequence_example(
+      serialized_example,
+      context_features=context_features,
+      sequence_features=sequence_features,
+      example_name="udc_example_{}".format(mode),
+    )
+
+    # Merge all features into a single dictionary and batch them
+    merged_features = {**context, **sequence}    
+
+    # Get the training labels
     if mode == tf.contrib.learn.ModeKeys.TRAIN:
-      target = feature_map.pop("label")
+      target = tf.expand_dims(merged_features.pop("label"), 0)
     else:
-      # In evaluation we have 10 classes (utterances).
-      # The first one is always the correct one
-      target = tf.zeros([batch_size, 1], dtype=tf.int64)
-    return feature_map, target
+      target = tf.zeros([1], dtype=tf.int64)
+
+    merged_features["target"] = target
+    batched_features = tf.train.batch(
+      tensors=merged_features,
+      batch_size=batch_size,
+      capacity=batch_size * 10,
+      dynamic_pad=True)
+
+    return batched_features, batched_features["target"]
 
   return input_fn
