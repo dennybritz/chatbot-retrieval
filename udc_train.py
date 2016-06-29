@@ -51,7 +51,7 @@ def main(unused_argv):
     input_file=[VALIDATION_FILE],
     batch_size=hparams.eval_batch_size)
 
-  eval_metrics = udc_metrics.create_evaluation_metrics(hparams)
+  eval_metrics = udc_metrics.create_evaluation_metrics()
 
   class EvaluationMonitor(tf.contrib.learn.monitors.EveryN):
     def every_n_step_end(self, step, outputs):
