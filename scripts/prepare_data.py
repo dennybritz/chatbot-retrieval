@@ -9,10 +9,6 @@ import array
 tf.flags.DEFINE_integer(
   "min_word_frequency", 5, "Minimum frequency of words in the vocabulary")
 
-tf.flags.DEFINE_integer(
-  "max_sentence_len", 160,
-  "Maximum Sentence length. All text will be trimmed to this length.")
-
 tf.flags.DEFINE_string(
   "input_dir", os.path.abspath("./data"),
   "Input directory containing original CSV data files (default = './data')")
@@ -45,7 +41,7 @@ def create_vocab(input_iter, min_frequency):
   for the input iterator.
   """
   vocab_processor = tf.contrib.learn.preprocessing.VocabularyProcessor(
-      FLAGS.max_sentence_len,
+      None,
       min_frequency=min_frequency,
       tokenizer_fn=lambda iterator: (x.split(" ") for x in iterator))
   vocab_processor.fit(input_iter)
