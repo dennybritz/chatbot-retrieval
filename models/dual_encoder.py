@@ -41,18 +41,11 @@ def dual_encoder_model(
 
   # Build the RNN
   with tf.variable_scope("rnn") as vs:
+    # We use an LSTM Cell
     cell = tf.nn.rnn_cell.LSTMCell(
         hparams.rnn_dim,
         forget_bias=2.0,
         state_is_tuple=True)
-
-    # Apply dropout only during training
-    is_training = tf.convert_to_tensor(mode == tf.contrib.learn.ModeKeys.TRAIN)
-    dropout_keep_prob = tf.cond(
-        is_training,
-        lambda: tf.convert_to_tensor(hparams.dropout_keep_prob),
-        lambda: tf.convert_to_tensor(1.0))
-    cell = tf.nn.rnn_cell.DropoutWrapper(cell, output_keep_prob=dropout_keep_prob)
 
     # Run the context through the RNN
     # The context vector `c` is the last state of the RNN
