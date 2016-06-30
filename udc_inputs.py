@@ -43,7 +43,8 @@ def create_input_fn(mode, input_files, batch_size, num_epochs=None):
     )
 
     # Merge all features into a single dictionary and batch them
-    merged_features = {**context, **sequence}    
+    merged_features = context.copy()
+    merged_features.update(sequence)
 
     # Get the training labels
     if mode == tf.contrib.learn.ModeKeys.TRAIN:
