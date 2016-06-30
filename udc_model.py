@@ -18,13 +18,16 @@ def create_train_op(loss, hparams):
   return train_op
 
 
-def create_model_fn_for_recall(hparams, model_impl):
+def create_model_fn(hparams, model_impl):
 
   def model_fn(features, targets, mode):
     context, context_len = get_id_feature(
         features, "context", "context_len", hparams.max_context_len)
+
     utterance, utterance_len = get_id_feature(
         features, "utterance", "utterance_len", hparams.max_utterance_len)
+
+    batch_size = targets.get_shape().as_list()[0]
 
     if mode == tf.contrib.learn.ModeKeys.TRAIN:
       probs, loss = model_impl(
@@ -45,7 +48,7 @@ def create_model_fn_for_recall(hparams, model_impl):
       all_context_lens = [context_len]
       all_utterances = [utterance]
       all_utterance_lens = [utterance_len]
-      all_targets = [tf.ones([hparams.eval_batch_size, 1], dtype=tf.int64)]
+      all_targets = [tf.ones([batch_size, 1], dtype=tf.int64)]
 
       for i in range(9):
         distractor, distractor_len = get_id_feature(features,
@@ -57,11 +60,11 @@ def create_model_fn_for_recall(hparams, model_impl):
         all_utterances.append(distractor)
         all_utterance_lens.append(distractor_len)
         all_targets.append(
-          tf.zeros([hparams.eval_batch_size, 1], dtype=tf.int64)
+          tf.zeros([batch_size, 1], dtype=tf.int64)
         )
 
       # Pad all the utterances to the same length. Needed for concat
-      max_lens = [tf.to_int64(tf.size(u) / hparams.eval_batch_size) for u in all_utterances]
+      max_lens = [tf.to_int64(tf.size(u) / batch_size) for u in all_utterances]
       max_utterance_len = tf.reduce_max(tf.pack(max_lens))
       for i, utterance in enumerate(all_utterances):
         pad_right = tf.to_int32(max_utterance_len - max_lens[i])

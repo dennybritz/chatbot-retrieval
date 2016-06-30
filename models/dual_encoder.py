@@ -29,30 +29,33 @@ def dual_encoder_model(
     utterance_len,
     targets):
 
+  # Initialize embedidngs randomly or with pre-trained vectors if available
   embeddings_W = get_embeddings(hparams)
 
-  with tf.device(embeddings_W.device):
-    context_embedded = tf.nn.embedding_lookup(
-        embeddings_W, context, name="embed_context")
-    utterance_embedded = tf.nn.embedding_lookup(
-        embeddings_W, utterance, name="embed_utterance")
+  # Embed the context and the utterance
+  context_embedded = tf.nn.embedding_lookup(
+      embeddings_W, context, name="embed_context")
+  utterance_embedded = tf.nn.embedding_lookup(
+      embeddings_W, utterance, name="embed_utterance")
 
+
+  # Build the RNN
   with tf.variable_scope("rnn") as vs:
     cell = tf.nn.rnn_cell.LSTMCell(
         hparams.rnn_dim,
         forget_bias=2.0,
         state_is_tuple=True)
-    # Apply dropout during training
+
+    # Apply dropout only during training
     is_training = tf.convert_to_tensor(mode == tf.contrib.learn.ModeKeys.TRAIN)
     dropout_keep_prob = tf.cond(
         is_training,
         lambda: tf.convert_to_tensor(hparams.dropout_keep_prob),
         lambda: tf.convert_to_tensor(1.0))
-    cell = tf.nn.rnn_cell.DropoutWrapper(
-        cell,
-        output_keep_prob=dropout_keep_prob)
+    cell = tf.nn.rnn_cell.DropoutWrapper(cell, output_keep_prob=dropout_keep_prob)
 
-    # Run the utterance and context through the RNN
+    # Run the context through the RNN
+    # The context vector `c` is the last state of the RNN
     _, encoding_context = tf.nn.dynamic_rnn(
         cell,
         context_embedded,
@@ -60,6 +63,8 @@ def dual_encoder_model(
         dtype=tf.float32)
     encoding_context = encoding_context.h
 
+    # Run the utterance through the RNN
+    # The utterance vector `r` is the last state of the RNN
     vs.reuse_variables()
     _, encoding_utterance = tf.nn.dynamic_rnn(
         cell,
@@ -68,24 +73,29 @@ def dual_encoder_model(
         dtype=tf.float32)
     encoding_utterance = encoding_utterance.h
 
-  with tf.variable_scope("prediction") as vs:
-    # Prediction parameters
-    W = tf.get_variable(
-        "W",
-        shape=[encoding_context.get_shape()[1],encoding_utterance.get_shape()[1]],
-        initializer=tf.random_normal_initializer())
-    b = tf.get_variable("b", [1])
-    # Generate a new context
-    generated_context = tf.matmul(encoding_utterance, W)
-    generated_context = tf.expand_dims(generated_context, 2)
-    encoding_context = tf.expand_dims(encoding_context, 2)
-    # Compare generated context with actual context
-    logits = tf.batch_matmul(generated_context, encoding_context, True) + b
-    logits = tf.squeeze(logits, [2])
-    probs = tf.sigmoid(logits)
-    losses = tf.nn.sigmoid_cross_entropy_with_logits(
-        logits,
-        tf.to_float(targets))
 
+  with tf.variable_scope("prediction") as vs:
+    M = tf.get_variable("M",
+      shape=[hparams.rnn_dim, hparams.rnn_dim],
+      initializer=tf.truncated_normal_initializer())
+    b = tf.get_variable("b", [hparams.rnn_dim])
+
+    # "Predict" a  response: c * M
+    generated_response = tf.matmul(encoding_context, M) + b
+    generated_response = tf.expand_dims(generated_response, 2)
+    encoding_utterance = tf.expand_dims(encoding_utterance, 2)
+
+    # Dot product between generated response and actual response
+    # (c * M) * r
+    logits = tf.batch_matmul(generated_response, encoding_utterance, True)
+    logits = tf.squeeze(logits, [2])
+
+    # Apply sigmoid to convert logits to probabilities
+    probs = tf.sigmoid(logits)
+
+    # Calculate the binary cross-entropy loss
+    losses = tf.nn.sigmoid_cross_entropy_with_logits(logits, tf.to_float(targets))
+
+  # Mean loss across the batch of examples
   mean_loss = tf.reduce_mean(losses, name="mean_loss")
   return probs, mean_loss

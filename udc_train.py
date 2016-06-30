@@ -13,7 +13,6 @@ tf.flags.DEFINE_string("model_dir", None, "")
 tf.flags.DEFINE_integer("loglevel", 20, "Log level")
 tf.flags.DEFINE_integer("num_epochs", None, "Number of Training Epochs")
 tf.flags.DEFINE_integer("eval_every", 2500, "Evaluate after this many train steps")
-tf.flags.DEFINE_integer("num_eval_steps", 100, "Number of Eval Steps")
 FLAGS = tf.flags.FLAGS
 
 TIMESTAMP = int(time.time())
@@ -31,7 +30,7 @@ tf.logging.set_verbosity(FLAGS.loglevel)
 def main(unused_argv):
   hparams = udc_hparams.create_hparams()
 
-  model_fn = udc_model.create_model_fn_for_recall(
+  model_fn = udc_model.create_model_fn(
     hparams,
     model_impl=dual_encoder_model)
 
@@ -42,29 +41,25 @@ def main(unused_argv):
 
   input_fn_train = udc_inputs.create_input_fn(
     mode=tf.contrib.learn.ModeKeys.TRAIN,
-    input_file=[TRAIN_FILE],
-    batch_size=hparams.batch_size,
-    num_epochs=None)
+    input_files=[TRAIN_FILE],
+    batch_size=hparams.batch_size)
 
   input_fn_eval = udc_inputs.create_input_fn(
     mode=tf.contrib.learn.ModeKeys.EVAL,
-    input_file=[VALIDATION_FILE],
+    input_files=[VALIDATION_FILE],
     batch_size=hparams.eval_batch_size)
 
   eval_metrics = udc_metrics.create_evaluation_metrics()
 
+  # We need to subclass theis manually for now. The next TF version will
+  # have support ValidationMonitors with metrics built-in.
+  # It's already on the master branch.
   class EvaluationMonitor(tf.contrib.learn.monitors.EveryN):
     def every_n_step_end(self, step, outputs):
-      self._estimator.evaluate(input_fn=input_fn_eval, steps=FLAGS.num_eval_steps, metrics=eval_metrics)
-
-  # TODO: Currently the validation monitor doesn't support metrics.
-  # It's on the master branch so we need to wait for next TF release
-  # validation_monitor = tf.contrib.learn.monitors.ValidationMonitor(
-  #   input_fn=input_fn_eval,
-  #   eval_steps=FLAGS.num_eval_steps,
-  #   every_n_steps=FLAGS.eval_every,
-  #   metrics=udc_metrics.create_evaluation_metrics(hparams)
-  # )
+      self._estimator.evaluate(
+        input_fn=input_fn_eval,
+        metrics=eval_metrics,
+        steps=500)
 
   eval_monitor = EvaluationMonitor(every_n_steps=FLAGS.eval_every)
   estimator.fit(input_fn=input_fn_train, steps=None, monitors=[eval_monitor])
