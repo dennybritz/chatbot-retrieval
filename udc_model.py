@@ -43,6 +43,7 @@ def create_model_fn(hparams, model_impl):
 
 
     if mode != tf.contrib.learn.ModeKeys.TRAIN:
+
       # We have 10 exampels per record, so we accumulate them
       all_contexts = [context]
       all_context_lens = [context_len]

@@ -30,7 +30,7 @@ def create_input_fn(mode, input_files, batch_size, num_epochs=None):
     context_features, sequence_features = get_features(mode)
 
     # Read an example
-    file_queue = tf.train.string_input_producer(input_files, num_epochs=num_epochs)
+    file_queue = tf.train.string_input_producer(input_files, num_epochs=num_epochs, name="{}_inputs".format(mode))
     reader = tf.TFRecordReader()
     seq_key, serialized_example = reader.read(file_queue)
 
@@ -41,6 +41,12 @@ def create_input_fn(mode, input_files, batch_size, num_epochs=None):
       sequence_features=sequence_features,
       example_name="udc_example_{}".format(mode),
     )
+
+    # This is an ugly hack because of a current bug in tf.learn
+    # During evaluation TF tries to restore the epoch variable which isn't defined during training
+    # So we define the variable manually here
+    if mode == tf.contrib.learn.ModeKeys.TRAIN:
+      tf.get_variable("eval_inputs/limit_epochs/epochs", initializer=tf.constant(0, dtype=tf.int64))
 
     # Merge all features into a single dictionary and batch them
     merged_features = context.copy()

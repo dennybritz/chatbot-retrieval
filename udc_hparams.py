@@ -29,7 +29,6 @@ HParams = namedtuple(
   "HParams",
   [
     "batch_size",
-    "dropout_keep_prob",
     "embedding_dim",
     "eval_batch_size",
     "learning_rate",
@@ -47,7 +46,6 @@ def create_hparams():
     batch_size=FLAGS.batch_size,
     eval_batch_size=FLAGS.eval_batch_size,
     vocab_size=FLAGS.vocab_size,
-    dropout_keep_prob=FLAGS.dropout_keep_prob,
     optimizer=FLAGS.optimizer,
     learning_rate=FLAGS.learning_rate,
     embedding_dim=FLAGS.embedding_dim,

@@ -8,11 +8,11 @@ import udc_metrics
 import udc_inputs
 from models.dual_encoder import dual_encoder_model
 
-tf.flags.DEFINE_string("input_dir", "./data", "")
-tf.flags.DEFINE_string("model_dir", None, "")
-tf.flags.DEFINE_integer("loglevel", 20, "Log level")
-tf.flags.DEFINE_integer("num_epochs", None, "Number of Training Epochs")
-tf.flags.DEFINE_integer("eval_every", 2500, "Evaluate after this many train steps")
+tf.flags.DEFINE_string("input_dir", "./data", "Directory containing input data files 'train.tfrecords' and 'validation.tfrecords'")
+tf.flags.DEFINE_string("model_dir", None, "Directory to store model checkpoints (defaults to ./runs)")
+tf.flags.DEFINE_integer("loglevel", 20, "Tensorflow log level")
+tf.flags.DEFINE_integer("num_epochs", None, "Number of training Epochs. Defaults to indefinite.")
+tf.flags.DEFINE_integer("eval_every", 200, "Evaluate after this many train steps")
 FLAGS = tf.flags.FLAGS
 
 TIMESTAMP = int(time.time())
@@ -42,12 +42,14 @@ def main(unused_argv):
   input_fn_train = udc_inputs.create_input_fn(
     mode=tf.contrib.learn.ModeKeys.TRAIN,
     input_files=[TRAIN_FILE],
-    batch_size=hparams.batch_size)
+    batch_size=hparams.batch_size,
+    num_epochs=FLAGS.num_epochs)
 
   input_fn_eval = udc_inputs.create_input_fn(
     mode=tf.contrib.learn.ModeKeys.EVAL,
     input_files=[VALIDATION_FILE],
-    batch_size=hparams.eval_batch_size)
+    batch_size=hparams.eval_batch_size,
+    num_epochs=1)
 
   eval_metrics = udc_metrics.create_evaluation_metrics()
 
@@ -59,7 +61,7 @@ def main(unused_argv):
       self._estimator.evaluate(
         input_fn=input_fn_eval,
         metrics=eval_metrics,
-        steps=500)
+        steps=None)
 
   eval_monitor = EvaluationMonitor(every_n_steps=FLAGS.eval_every)
   estimator.fit(input_fn=input_fn_train, steps=None, monitors=[eval_monitor])
