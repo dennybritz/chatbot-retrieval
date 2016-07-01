@@ -12,7 +12,7 @@ def get_embeddings(hparams):
     initializer = helpers.build_initial_embedding_matrix(vocab_dict, glove_dict, glove_vectors, hparams.embedding_dim)
   else:
     tf.logging.info("No glove/vocab path specificed, starting with random embeddings.")
-    initializer = tf.random_uniform_initializer(-0.25, 0.25)
+    initializer = tf.random_uniform_initializer(-0.01, 0.01)
 
   return tf.get_variable(
     "word_embeddings",

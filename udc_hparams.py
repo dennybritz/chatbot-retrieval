@@ -9,9 +9,9 @@ tf.flags.DEFINE_integer(
 
 # Model Parameters
 tf.flags.DEFINE_integer("embedding_dim", 50, "Dimensionality of the embeddings")
-tf.flags.DEFINE_integer("rnn_dim", 128, "Dimensionality of the RNN cell")
-tf.flags.DEFINE_integer("max_context_len", 80, "Truncate contexts to this length")
-tf.flags.DEFINE_integer("max_utterance_len", 40, "Truncate utterance to this length")
+tf.flags.DEFINE_integer("rnn_dim", 256, "Dimensionality of the RNN cell")
+tf.flags.DEFINE_integer("max_context_len", 120, "Truncate contexts to this length")
+tf.flags.DEFINE_integer("max_utterance_len", 80, "Truncate utterance to this length")
 
 # Pre-trained embeddings
 tf.flags.DEFINE_string("glove_path", None, "Path to pre-trained Glove vectors")
