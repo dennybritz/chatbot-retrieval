@@ -81,7 +81,7 @@ def create_example_train(row, vocab):
   example.context.feature["label"].int64_list.value.extend([label])
   example.context.feature["context_len"].int64_list.value.extend([context_len])
   example.context.feature["utterance_len"].int64_list.value.extend([utterance_len])
-  
+
   create_text_sequence_feature(
     example.feature_lists.feature_list["context"], context, context_len, vocab)
   create_text_sequence_feature(
@@ -94,7 +94,7 @@ def create_example_test(row, vocab):
   """
   Creates a test/validation example for the Ubuntu Dialog Corpus dataset.
   Returnsthe a tensorflow.Example Protocol Buffer object.
-  """  
+  """
   context, utterance = row[:2]
   distractors = row[2:]
   context_len = len(next(vocab._tokenizer([context])))
