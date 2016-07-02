@@ -57,45 +57,25 @@ def dual_encoder_model(
     encoding_context, encoding_utterance = tf.split(0, 2, rnn_states.h)
 
   with tf.variable_scope("prediction") as vs:
-    # Prediction parameters
-    W = tf.get_variable(
-        "W",
-        shape=[encoding_context.get_shape()[1],encoding_utterance.get_shape()[1]],
-        initializer=tf.random_normal_initializer())
-    b = tf.get_variable("b", [1])
-    # Generate a new context
-    generated_context = tf.matmul(encoding_utterance, W)
-    generated_context = tf.expand_dims(generated_context, 2)
-    encoding_context = tf.expand_dims(encoding_context, 2)
-    # Compare generated context with actual context
-    logits = tf.batch_matmul(generated_context, encoding_context, True) + b
+    M = tf.get_variable("M",
+      shape=[hparams.rnn_dim, hparams.rnn_dim],
+      initializer=tf.truncated_normal_initializer())
+
+    # "Predict" a  response: c * M
+    generated_response = tf.matmul(encoding_context, M)
+    generated_response = tf.expand_dims(generated_response, 2)
+    encoding_utterance = tf.expand_dims(encoding_utterance, 2)
+
+    # Dot product between generated response and actual response
+    # (c * M) * r
+    logits = tf.batch_matmul(generated_response, encoding_utterance, True)
     logits = tf.squeeze(logits, [2])
+
+    # Apply sigmoid to convert logits to probabilities
     probs = tf.sigmoid(logits)
-    losses = tf.nn.sigmoid_cross_entropy_with_logits(
-        logits,
-        tf.to_float(targets))
 
-  # with tf.variable_scope("prediction") as vs:
-  #   M = tf.get_variable("M",
-  #     shape=[hparams.rnn_dim, hparams.rnn_dim],
-  #     initializer=tf.truncated_normal_initializer())
-  #   # b = tf.get_variable("b", [hparams.rnn_dim])
-
-  #   # "Predict" a  response: c * M
-  #   generated_response = tf.matmul(encoding_context, M)
-  #   generated_response = tf.expand_dims(generated_response, 2)
-  #   encoding_utterance = tf.expand_dims(encoding_utterance, 2)
-
-  #   # Dot product between generated response and actual response
-  #   # (c * M) * r
-  #   logits = tf.batch_matmul(generated_response, encoding_utterance, True)
-  #   logits = tf.squeeze(logits, [2])
-
-  #   # Apply sigmoid to convert logits to probabilities
-  #   probs = tf.sigmoid(logits)
-
-  #   # Calculate the binary cross-entropy loss
-  #   losses = tf.nn.sigmoid_cross_entropy_with_logits(logits, tf.to_float(targets))
+    # Calculate the binary cross-entropy loss
+    losses = tf.nn.sigmoid_cross_entropy_with_logits(logits, tf.to_float(targets))
 
   # Mean loss across the batch of examples
   mean_loss = tf.reduce_mean(losses, name="mean_loss")
