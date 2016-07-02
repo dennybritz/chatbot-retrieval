@@ -90,8 +90,9 @@ def create_input_fn(mode, hparams, input_files, batch_size, num_epochs=None):
     batched_features = tf.train.batch(
       tensors=merged_features,
       batch_size=batch_size,
-      capacity=100 + batch_size * 10,
+      capacity=10000 + batch_size * 10,
       dynamic_pad=True)
+
     labels = batched_features["target"]
 
     return batched_features, labels
