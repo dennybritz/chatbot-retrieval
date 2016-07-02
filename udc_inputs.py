@@ -23,7 +23,19 @@ def get_features(mode):
   return [context_features, sequence_features]
 
 
-def create_input_fn(mode, input_files, batch_size, num_epochs=None):
+def trim_pad_tensor(t, length):
+  """
+  Trims or pads a vector to the specified length.
+  """
+  return tf.cond(
+    tf.greater_equal(tf.size(t), length),
+    lambda: tf.slice(t, [0], [length]),
+    lambda: tf.pad(
+      t,
+      tf.convert_to_tensor([[0,1]]) * (tf.constant(length) - tf.size(t)))
+  )
+
+def create_input_fn(mode, hparams, input_files, batch_size, num_epochs=None):
   def input_fn():
 
     # Get feature columns based on current mode (train/test)
@@ -51,6 +63,20 @@ def create_input_fn(mode, input_files, batch_size, num_epochs=None):
     # Merge all features into a single dictionary and batch them
     merged_features = context.copy()
     merged_features.update(sequence)
+
+    # Trim or pad utterances to the same length
+    merged_features["utterance"] = trim_pad_tensor(
+      merged_features["utterance"],
+      hparams.max_utterance_len)
+    if mode == tf.contrib.learn.ModeKeys.EVAL:
+      for i in range(9):
+        key = "distractor_{}".format(i)
+        merged_features[key] = trim_pad_tensor(
+          merged_features[key], hparams.max_utterance_len)
+
+    # Trim or pad contexts to the same length
+    merged_features["context"] = trim_pad_tensor(
+      merged_features["context"], hparams.max_context_len)
 
     # Get the training labels
     if mode == tf.contrib.learn.ModeKeys.TRAIN:

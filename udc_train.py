@@ -41,12 +41,14 @@ def main(unused_argv):
 
   input_fn_train = udc_inputs.create_input_fn(
     mode=tf.contrib.learn.ModeKeys.TRAIN,
+    hparams=hparams,
     input_files=[TRAIN_FILE],
     batch_size=hparams.batch_size,
     num_epochs=FLAGS.num_epochs)
 
   input_fn_eval = udc_inputs.create_input_fn(
     mode=tf.contrib.learn.ModeKeys.EVAL,
+    hparams=hparams,
     input_files=[VALIDATION_FILE],
     batch_size=hparams.eval_batch_size,
     num_epochs=1)

@@ -64,27 +64,12 @@ def create_model_fn(hparams, model_impl):
           tf.zeros([batch_size, 1], dtype=tf.int64)
         )
 
-      # Make sure all utterances are padded correctly
-      q = tf.PaddingFIFOQueue(batch_size * 50, tf.int64, shapes=[tf.TensorShape([None])])
-      enqueue_ops = [q.enqueue_many(u) for u in all_utterances]
-      with tf.control_dependencies(enqueue_ops):
-        all_utterances_concat = q.dequeue_many(batch_size * 10)
-
-      # Pad all the utterances to the same length. Needed for concat
-      # max_lens = [tf.to_int64(tf.size(u) / batch_size) for u in all_utterances]
-      # max_utterance_len = tf.reduce_max(tf.pack(max_lens))
-      # for i, utterance in enumerate(all_utterances):
-      #   pad_right = tf.to_int32(max_utterance_len - max_lens[i])
-      #   padding = tf.convert_to_tensor([[0,0],[0,1]]) * pad_right
-      #   all_utterances[i] = tf.pad(utterance, padding)
-
       probs, loss = model_impl(
           hparams,
           mode,
           tf.concat(0, all_contexts),
           tf.concat(0, all_context_lens),
-          all_utterances_concat,
-          # tf.concat(0, all_utterances),
+          tf.concat(0, all_utterances),
           tf.concat(0, all_utterance_lens),
           tf.concat(0, all_targets))
 
