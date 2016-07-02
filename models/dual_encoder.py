@@ -61,10 +61,10 @@ def dual_encoder_model(
     M = tf.get_variable("M",
       shape=[hparams.rnn_dim, hparams.rnn_dim],
       initializer=tf.truncated_normal_initializer())
-    b = tf.get_variable("b", [hparams.rnn_dim])
+    # b = tf.get_variable("b", [hparams.rnn_dim])
 
     # "Predict" a  response: c * M
-    generated_response = tf.matmul(encoding_context, M) + b
+    generated_response = tf.matmul(encoding_context, M)
     generated_response = tf.expand_dims(generated_response, 2)
     encoding_utterance = tf.expand_dims(encoding_utterance, 2)
 
