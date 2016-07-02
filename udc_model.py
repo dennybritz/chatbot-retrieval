@@ -64,6 +64,7 @@ def create_model_fn(hparams, model_impl):
           tf.zeros([batch_size, 1], dtype=tf.int64)
         )
 
+      # Make sure all utterances are padded correctly
       q = tf.PaddingFIFOQueue(batch_size * 50, tf.int64, shapes=[tf.TensorShape([None])])
       enqueue_ops = [q.enqueue_many(u) for u in all_utterances]
       with tf.control_dependencies(enqueue_ops):
