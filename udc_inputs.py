@@ -65,18 +65,19 @@ def create_input_fn(mode, hparams, input_files, batch_size, num_epochs=None):
     merged_features.update(sequence)
 
     # Trim or pad utterances to the same length
+    max_len = max([hparams.max_utterance_len, hparams.max_context_len])
     merged_features["utterance"] = trim_pad_tensor(
       merged_features["utterance"],
-      hparams.max_utterance_len)
+      max_len)
     if mode == tf.contrib.learn.ModeKeys.EVAL:
       for i in range(9):
         key = "distractor_{}".format(i)
         merged_features[key] = trim_pad_tensor(
-          merged_features[key], hparams.max_utterance_len)
+          merged_features[key], max_len)
 
     # Trim or pad contexts to the same length
     merged_features["context"] = trim_pad_tensor(
-      merged_features["context"], hparams.max_context_len)
+      merged_features["context"], max_len)
 
     # Get the training labels
     if mode == tf.contrib.learn.ModeKeys.TRAIN:

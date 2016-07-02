@@ -48,24 +48,13 @@ def dual_encoder_model(
         use_peepholes=True,
         state_is_tuple=True)
 
-    # Run the context through the RNN
-    # The context vector `c` is the last state of the RNN
-    _, encoding_context = tf.nn.dynamic_rnn(
+    # Run the utterance and context through the RNN
+    rnn_outputs, rnn_states = tf.nn.dynamic_rnn(
         cell,
-        context_embedded,
-        sequence_length=context_len,
+        tf.concat(0, [context_embedded, utterance_embedded]),
+        sequence_length=tf.concat(0, [context_len, utterance_len]),
         dtype=tf.float32)
-    encoding_context = encoding_context.h
-
-    # Run the utterance through the RNN
-    # The utterance vector `r` is the last state of the RNN
-    vs.reuse_variables()
-    _, encoding_utterance = tf.nn.dynamic_rnn(
-        cell,
-        utterance_embedded,
-        sequence_length=utterance_len,
-        dtype=tf.float32)
-    encoding_utterance = encoding_utterance.h
+    encoding_context, encoding_utterance = tf.split(0, 2, rnn_states.h)
 
 
   with tf.variable_scope("prediction") as vs:
