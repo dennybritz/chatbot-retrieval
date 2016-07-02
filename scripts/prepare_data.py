@@ -9,6 +9,8 @@ import array
 tf.flags.DEFINE_integer(
   "min_word_frequency", 5, "Minimum frequency of words in the vocabulary")
 
+tf.flags.DEFINE_integer("max_sentence_len", 160, "Maximum Sentence Length")
+
 tf.flags.DEFINE_string(
   "input_dir", os.path.abspath("./data"),
   "Input directory containing original CSV data files (default = './data')")
@@ -41,7 +43,7 @@ def create_vocab(input_iter, min_frequency):
   for the input iterator.
   """
   vocab_processor = tf.contrib.learn.preprocessing.VocabularyProcessor(
-      None,
+      FLAGS.max_sentence_len,
       min_frequency=min_frequency,
       tokenizer_fn=lambda iterator: (x.split(" ") for x in iterator))
   vocab_processor.fit(input_iter)
@@ -52,8 +54,7 @@ def transform_sentence(sequence, vocab_processor):
   """
   Maps a single sentence into the integer vocabulary. Returns a python array.
   """
-  tokenized = next(vocab_processor._tokenizer([sequence]))
-  return [vocab_processor.vocabulary_.get(token) for token in tokenized]
+  return next(vocab_processor.transform([sequence])).tolist()
 
 
 def create_text_sequence_feature(fl, sentence, sentence_len, vocab):
@@ -72,21 +73,19 @@ def create_example_train(row, vocab):
   Returnsthe a tensorflow.Example Protocol Buffer object.
   """
   context, utterance, label = row
+  context_transformed = transform_sentence(context, vocab)
+  utterance_transformed = transform_sentence(utterance, vocab)
   context_len = len(next(vocab._tokenizer([context])))
   utterance_len = len(next(vocab._tokenizer([utterance])))
   label = int(float(label))
 
-  # New Sequence Example
-  example = tf.train.SequenceExample()
-  example.context.feature["label"].int64_list.value.extend([label])
-  example.context.feature["context_len"].int64_list.value.extend([context_len])
-  example.context.feature["utterance_len"].int64_list.value.extend([utterance_len])
-
-  create_text_sequence_feature(
-    example.feature_lists.feature_list["context"], context, context_len, vocab)
-  create_text_sequence_feature(
-    example.feature_lists.feature_list["utterance"], utterance, utterance_len, vocab)
-
+  # New Example
+  example = tf.train.Example()
+  example.features.feature["context"].int64_list.value.extend(context_transformed)
+  example.features.feature["utterance"].int64_list.value.extend(utterance_transformed)
+  example.features.feature["context_len"].int64_list.value.extend([context_len])
+  example.features.feature["utterance_len"].int64_list.value.extend([utterance_len])
+  example.features.feature["label"].int64_list.value.extend([label])
   return example
 
 
@@ -99,15 +98,15 @@ def create_example_test(row, vocab):
   distractors = row[2:]
   context_len = len(next(vocab._tokenizer([context])))
   utterance_len = len(next(vocab._tokenizer([utterance])))
+  context_transformed = transform_sentence(context, vocab)
+  utterance_transformed = transform_sentence(utterance, vocab)
 
-  # New Sequence Example
-  example = tf.train.SequenceExample()
-  example.context.feature["context_len"].int64_list.value.extend([context_len])
-  example.context.feature["utterance_len"].int64_list.value.extend([utterance_len])
-  create_text_sequence_feature(
-    example.feature_lists.feature_list["context"], context, context_len, vocab)
-  create_text_sequence_feature(
-    example.feature_lists.feature_list["utterance"], utterance, utterance_len, vocab)
+  # New Example
+  example = tf.train.Example()
+  example.features.feature["context"].int64_list.value.extend(context_transformed)
+  example.features.feature["utterance"].int64_list.value.extend(utterance_transformed)
+  example.features.feature["context_len"].int64_list.value.extend([context_len])
+  example.features.feature["utterance_len"].int64_list.value.extend([utterance_len])
 
   # Distractor sequences
   for i, distractor in enumerate(distractors):
@@ -115,10 +114,10 @@ def create_example_test(row, vocab):
     dis_len_key = "distractor_{}_len".format(i)
     # Distractor Length Feature
     dis_len = len(next(vocab._tokenizer([distractor])))
-    example.context.feature[dis_len_key].int64_list.value.extend([dis_len])
+    example.features.feature[dis_len_key].int64_list.value.extend([dis_len])
     # Distractor Text Feature
-    create_text_sequence_feature(
-      example.feature_lists.feature_list[dis_key], distractor, dis_len, vocab)
+    dis_transformed = transform_sentence(distractor, vocab)
+    example.features.feature[dis_key].int64_list.value.extend(dis_transformed)
   return example
 
 
