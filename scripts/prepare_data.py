@@ -103,7 +103,7 @@ def create_example_test(row, vocab):
   # New Sequence Example
   example = tf.train.SequenceExample()
   example.context.feature["context_len"].int64_list.value.extend([context_len])
-  example.context.feature["utterance_len"].int64_list.value.extend([utterance_len])  
+  example.context.feature["utterance_len"].int64_list.value.extend([utterance_len])
   create_text_sequence_feature(
     example.feature_lists.feature_list["context"], context, context_len, vocab)
   create_text_sequence_feature(
@@ -112,7 +112,7 @@ def create_example_test(row, vocab):
   # Distractor sequences
   for i, distractor in enumerate(distractors):
     dis_key = "distractor_{}".format(i)
-    dis_len_key = "distractor_{}_len".format(i)    
+    dis_len_key = "distractor_{}_len".format(i)
     # Distractor Length Feature
     dis_len = len(next(vocab._tokenizer([distractor])))
     example.context.feature[dis_len_key].int64_list.value.extend([dis_len])
