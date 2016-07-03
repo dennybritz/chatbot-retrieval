@@ -1,6 +1,6 @@
 ## Retrieval-Based Conversational Model in Tensorflow (Ubuntu Dialog Corpus)
 
-**[Please read the blog post for this code](http://www.wildml.com/2016/07/deep-learning-for-chatbots-2-retrieval-based-model-tensorflow)**
+#### [Please read the blog post for this code](http://www.wildml.com/2016/07/deep-learning-for-chatbots-2-retrieval-based-model-tensorflow)
 
 #### Overview
 
