@@ -9,6 +9,7 @@ The code here implements the Dual LSTM Encoder model from [The Ubuntu Dialogue C
 This code uses Python 3 and Tensorflow >= 0.9. Clone the repository and install all required packages:
 
 ```
+pip install -U pip
 pip install -r requirements.txt
 ```
 
