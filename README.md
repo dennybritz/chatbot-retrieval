@@ -1,5 +1,7 @@
 ## Retrieval-Based Conversational Model in Tensorflow (Ubuntu Dialog Corpus)
 
+**[Please read the blog post for this code](http://www.wildml.com/2016/07/deep-learning-for-chatbots-2-retrieval-based-model-tensorflow)**
+
 #### Overview
 
 The code here implements the Dual LSTM Encoder model from [The Ubuntu Dialogue Corpus: A Large Dataset for Research in Unstructured Multi-Turn Dialogue Systems](http://arxiv.org/abs/1506.08909).
