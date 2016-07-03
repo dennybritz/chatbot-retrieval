@@ -42,7 +42,7 @@ def create_input_fn(mode, input_files, batch_size, num_epochs):
         reader=tf.TFRecordReader,
         randomize_input=True,
         num_epochs=num_epochs,
-        queue_capacity=batch_size * 10,
+        queue_capacity=200000 + batch_size * 10,
         name="read_batch_features_{}".format(mode))
 
     # This is an ugly hack because of a current bug in tf.learn
