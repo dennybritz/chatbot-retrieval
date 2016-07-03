@@ -74,6 +74,9 @@ def dual_encoder_model(
     # Apply sigmoid to convert logits to probabilities
     probs = tf.sigmoid(logits)
 
+    if mode == tf.contrib.learn.ModeKeys.INFER:
+      return probs, None
+
     # Calculate the binary cross-entropy loss
     losses = tf.nn.sigmoid_cross_entropy_with_logits(logits, tf.to_float(targets))
 

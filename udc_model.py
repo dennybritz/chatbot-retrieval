@@ -3,7 +3,7 @@ import sys
 
 def get_id_feature(features, key, len_key, max_len):
   ids = features[key]
-  ids_len = tf.squeeze(features[len_key])
+  ids_len = tf.squeeze(features[len_key], [1])
   ids_len = tf.minimum(ids_len, tf.constant(max_len, dtype=tf.int64))
   return ids, ids_len
 
@@ -41,8 +41,18 @@ def create_model_fn(hparams, model_impl):
       train_op = create_train_op(loss, hparams)
       return probs, loss, train_op
 
+    if mode == tf.contrib.learn.ModeKeys.INFER:
+      probs, loss = model_impl(
+          hparams,
+          mode,
+          context,
+          context_len,
+          utterance,
+          utterance_len,
+          None)
+      return probs, 0.0, None
 
-    if mode != tf.contrib.learn.ModeKeys.TRAIN:
+    if mode == tf.contrib.learn.ModeKeys.EVAL:
 
       # We have 10 exampels per record, so we accumulate them
       all_contexts = [context]

@@ -25,6 +25,9 @@ TRAIN_PATH = os.path.join(FLAGS.input_dir, "train.csv")
 VALIDATION_PATH = os.path.join(FLAGS.input_dir, "valid.csv")
 TEST_PATH = os.path.join(FLAGS.input_dir, "test.csv")
 
+def tokenizer_fn(iterator):
+  return (x.split(" ") for x in iterator)
+
 def create_csv_iter(filename):
   """
   Returns an iterator over a CSV file. Skips the header.
@@ -45,7 +48,7 @@ def create_vocab(input_iter, min_frequency):
   vocab_processor = tf.contrib.learn.preprocessing.VocabularyProcessor(
       FLAGS.max_sentence_len,
       min_frequency=min_frequency,
-      tokenizer_fn=lambda iterator: (x.split(" ") for x in iterator))
+      tokenizer_fn=tokenizer_fn)
   vocab_processor.fit(input_iter)
   return vocab_processor
 
@@ -157,6 +160,9 @@ if __name__ == "__main__":
   # Create vocabulary.txt file
   write_vocabulary(
     vocab, os.path.join(FLAGS.output_dir, "vocabulary.txt"))
+
+  # Save vocab processor
+  vocab.save(os.path.join(FLAGS.output_dir, "vocab_processor.bin"))
 
   # Create validation.tfrecords
   create_tfrecords_file(
