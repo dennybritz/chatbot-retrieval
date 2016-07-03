@@ -18,3 +18,22 @@ pip install numpy scikit-learn pandas jupyter
 Download the train/dev/test data [here](https://drive.google.com/open?id=0B_bZck-ksdkpVEtVc1R6Y01HMWM) and extract the acrhive into `./data`.
 
 
+#### Training
+
+```
+python udc_train.py
+```
+
+
+#### Evaluation
+
+```
+python udc_test.py --model_dir=...
+```
+
+
+#### Evaluation
+
+```
+python udc_predict.py --model_dir=...
+```
