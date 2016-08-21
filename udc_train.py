@@ -63,7 +63,7 @@ def main(unused_argv):
         metrics=eval_metrics,
         steps=None)
 
-  eval_monitor = EvaluationMonitor(every_n_steps=FLAGS.eval_every)
+  eval_monitor = EvaluationMonitor(every_n_steps=FLAGS.eval_every, first_n_steps=-1)
   estimator.fit(input_fn=input_fn_train, steps=None, monitors=[eval_monitor])
 
 if __name__ == "__main__":
