@@ -13,7 +13,6 @@ def create_train_op(loss, hparams):
       global_step=tf.contrib.framework.get_global_step(),
       learning_rate=hparams.learning_rate,
       clip_gradients=10.0,
-      moving_average_decay=None,
       optimizer=hparams.optimizer)
   return train_op
 
