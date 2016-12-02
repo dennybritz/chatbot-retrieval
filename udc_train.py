@@ -52,18 +52,12 @@ def main(unused_argv):
     num_epochs=1)
 
   eval_metrics = udc_metrics.create_evaluation_metrics()
-
-  # We need to subclass theis manually for now. The next TF version will
-  # have support ValidationMonitors with metrics built-in.
-  # It's already on the master branch.
-  class EvaluationMonitor(tf.contrib.learn.monitors.EveryN):
-    def every_n_step_end(self, step, outputs):
-      self._estimator.evaluate(
+  
+  eval_monitor = tf.contrib.learn.monitors.ValidationMonitor(
         input_fn=input_fn_eval,
-        metrics=eval_metrics,
-        steps=None)
+        every_n_steps=FLAGS.eval_every,
+        metrics=eval_metrics)
 
-  eval_monitor = EvaluationMonitor(every_n_steps=FLAGS.eval_every, first_n_steps=-1)
   estimator.fit(input_fn=input_fn_train, steps=None, monitors=[eval_monitor])
 
 if __name__ == "__main__":
