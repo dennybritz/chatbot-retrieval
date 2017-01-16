@@ -40,3 +40,4 @@ def build_initial_embedding_matrix(vocab_dict, glove_dict, glove_vectors, embedd
   for word, glove_word_idx in glove_dict.items():
     word_idx = vocab_dict.get(word)
     initial_embeddings[word_idx, :] = glove_vectors[glove_word_idx]
+  return initial_embeddings
