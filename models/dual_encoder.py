@@ -51,10 +51,10 @@ def dual_encoder_model(
     # Run the utterance and context through the RNN
     rnn_outputs, rnn_states = tf.nn.dynamic_rnn(
         cell,
-        tf.concat(0, [context_embedded, utterance_embedded]),
-        sequence_length=tf.concat(0, [context_len, utterance_len]),
+        tf.concat([context_embedded, utterance_embedded], 0),
+        sequence_length=tf.concat([context_len, utterance_len], 0),
         dtype=tf.float32)
-    encoding_context, encoding_utterance = tf.split(0, 2, rnn_states.h)
+    encoding_context, encoding_utterance = tf.split(rnn_states.h, 2, 0)
 
   with tf.variable_scope("prediction") as vs:
     M = tf.get_variable("M",
@@ -68,7 +68,7 @@ def dual_encoder_model(
 
     # Dot product between generated response and actual response
     # (c * M) * r
-    logits = tf.batch_matmul(generated_response, encoding_utterance, True)
+    logits = tf.matmul(generated_response, encoding_utterance, True)
     logits = tf.squeeze(logits, [2])
 
     # Apply sigmoid to convert logits to probabilities
@@ -78,7 +78,7 @@ def dual_encoder_model(
       return probs, None
 
     # Calculate the binary cross-entropy loss
-    losses = tf.nn.sigmoid_cross_entropy_with_logits(logits, tf.to_float(targets))
+    losses = tf.nn.sigmoid_cross_entropy_with_logits(logits=logits, labels=tf.to_float(targets))
 
   # Mean loss across the batch of examples
   mean_loss = tf.reduce_mean(losses, name="mean_loss")
