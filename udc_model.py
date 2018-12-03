@@ -76,20 +76,20 @@ def create_model_fn(hparams, model_impl):
       probs, loss = model_impl(
           hparams,
           mode,
-          tf.concat(0, all_contexts),
-          tf.concat(0, all_context_lens),
-          tf.concat(0, all_utterances),
-          tf.concat(0, all_utterance_lens),
-          tf.concat(0, all_targets))
+          tf.concat(all_contexts, 0),
+          tf.concat(all_context_lens, 0),
+          tf.concat(all_utterances, 0),
+          tf.concat(all_utterance_lens, 0),
+          tf.concat(all_targets, 0))
 
-      split_probs = tf.split(0, 10, probs)
-      shaped_probs = tf.concat(1, split_probs)
+      split_probs = tf.split(probs, 10, 0)
+      shaped_probs = tf.concat(split_probs, 1)
 
       # Add summaries
-      tf.histogram_summary("eval_correct_probs_hist", split_probs[0])
-      tf.scalar_summary("eval_correct_probs_average", tf.reduce_mean(split_probs[0]))
-      tf.histogram_summary("eval_incorrect_probs_hist", split_probs[1])
-      tf.scalar_summary("eval_incorrect_probs_average", tf.reduce_mean(split_probs[1]))
+      tf.summary.histogram("eval_correct_probs_hist", split_probs[0])
+      tf.summary.scalar("eval_correct_probs_average", tf.reduce_mean(split_probs[0]))
+      tf.summary.histogram("eval_incorrect_probs_hist", split_probs[1])
+      tf.summary.scalar("eval_incorrect_probs_average", tf.reduce_mean(split_probs[1]))
 
       return shaped_probs, loss, None
 
