@@ -27,8 +27,8 @@ vp = tf.contrib.learn.preprocessing.VocabularyProcessor.restore(
   FLAGS.vocab_processor_file)
 
 # Load your own data here
-INPUT_CONTEXT = "What is your name?"
-POTENTIAL_RESPONSES = ["hi", "I am Lily."]
+INPUT_CONTEXT = "my food"
+POTENTIAL_RESPONSES = ["rice","windows"]
 
 def get_features(context, utterance):
   context_matrix = np.array(list(vp.transform([context])))
