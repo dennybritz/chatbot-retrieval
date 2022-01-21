@@ -5,7 +5,7 @@ decorator==4.0.10
 entrypoints==0.2.2
 gnureadline==6.3.3
 ipykernel==4.3.1
-ipython==4.2.0
+ipython==7.16.3
 ipython-genutils==0.1.0
 ipywidgets==5.1.5
 Jinja2==2.8
