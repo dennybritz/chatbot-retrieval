@@ -16,7 +16,7 @@ jupyter-console==4.1.1
 jupyter-core==4.1.0
 MarkupSafe==0.23
 matplotlib==1.5.1
-mistune==0.7.2
+mistune==0.8.1
 nbconvert==4.2.0
 nbformat==4.0.1
 notebook==4.2.1
